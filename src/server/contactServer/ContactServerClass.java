@@ -6,7 +6,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 
 import server.ServerClass;
-import server.dataServer.DirServerImpl;
+import server.dataServer.DataServerClass;
 
 public class ContactServerClass
 		extends ServerClass
