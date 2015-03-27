@@ -17,19 +17,28 @@ import server.fileServer.FileServerClass;
 public class ContactServerClass extends ServerClass implements ContactServer {
 	
 	
-	//private Map<String, List<ServerInfo>> swarm;
-	private List<ServerInfo> servers;
+	private Map<String, List<ServerInfo>> swarm;
+	//private List<ServerInfo> servers;
 
 	
 	protected ContactServerClass() throws RemoteException {
 		super();
-	//	this.swarm = new HashMap<String, List<ServerInfo>>();
-		this.servers = new ArrayList<ServerInfo>();
-		servers.add(new ServerInfo("potato", "catota"));
+		this.swarm = new HashMap<String, List<ServerInfo>>();
+		List<ServerInfo> a = new ArrayList<ServerInfo>();
+		a.add(new ServerInfo("batata", "batata"));
+		swarm.put("teste", a);
+	//	this.servers = new ArrayList<ServerInfo>();
+	//	servers.add(new ServerInfo("potato", "catota"));
 	}
 	
-	public List<ServerInfo> getServers() throws RemoteException {
-		return servers; 
+	public String[] getServers() throws Exception {
+		if(swarm.size() == 0){
+			throw new Exception("Não existem servers"); //mudar para excepção nossa
+		}
+		
+		String[] servers = swarm.keySet().toArray(new String[swarm.size()]);
+
+		return servers;
 	}
 	
 	@SuppressWarnings("deprecation")

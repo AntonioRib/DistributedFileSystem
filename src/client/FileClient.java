@@ -31,14 +31,16 @@ public class FileClient
 	 */
 	protected String[] servers( String name ) {
 		System.err.println( "exec: servers");
-		try {
-			ContactServer server = (ContactServer) Naming.lookup("//localhost/contactServer");
-			List<ServerInfo> l = server.getServers();
-			for (ServerInfo s: l)
-				System.out.println(s.getName());
-		} catch (MalformedURLException | RemoteException | NotBoundException e) {
-			e.printStackTrace();
-		}
+			ContactServer server;
+			try {
+				server = (ContactServer) Naming.lookup("//localhost/contactServer");
+				String[] servers = server.getServers();
+				for(int i = 0; i<servers.length; i++)
+					System.out.println(servers[i]);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		return null;
 	}
 	
