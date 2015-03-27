@@ -7,7 +7,7 @@ import java.util.*;
 import server.Server;
 import client.FileInfo;
 
-public interface IFileServer extends Server
+public interface DataServer extends Server
 {
 	/**
 	 * Lista nome de ficheiros num dado directorio

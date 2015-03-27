@@ -12,5 +12,5 @@ public class ServerClass
 	protected ServerClass() throws RemoteException {
 		super();
 	}
-
+//	Classe que irá conter todos os métodos comuns a qualquer server que possa ser implementado.
 }

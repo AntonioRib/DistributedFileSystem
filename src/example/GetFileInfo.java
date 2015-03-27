@@ -6,7 +6,7 @@ import java.io.FileOutputStream;
 import java.io.RandomAccessFile;
 import java.rmi.* ;
 
-import server.dataServer.IFileServer;
+import server.dataServer.DataServer;
 import client.FileInfo;
 
 public class GetFileInfo {
@@ -21,7 +21,7 @@ public class GetFileInfo {
         String name = args[2];
     	
 		try {
-			IFileServer server = (IFileServer) Naming.lookup("//" + serverHost + "/myFileServer");
+			DataServer server = (DataServer) Naming.lookup("//" + serverHost + "/myFileServer");
 
 			FileInfo info = server.getFileInfo(path, name);
 			byte[] buffer = server.getFile(path, name);

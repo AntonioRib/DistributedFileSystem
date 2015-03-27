@@ -2,7 +2,7 @@ package example;
 
 import java.rmi.Naming;
 
-import server.dataServer.IFileServer;
+import server.dataServer.DataServer;
 import server.dataServer.InfoNotFoundException;
 
 public class GetDirList {
@@ -16,7 +16,7 @@ public class GetDirList {
         String path = args[1];
     	
 		try {
-			IFileServer server = (IFileServer) Naming.lookup("//" + serverHost + "/myFileServer");
+			DataServer server = (DataServer) Naming.lookup("//" + serverHost + "/myFileServer");
 
 			try {
 				String files[] = server.dir( path);

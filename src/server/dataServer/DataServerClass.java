@@ -13,11 +13,10 @@ import java.util.Date;
 import server.ServerClass;
 import client.FileInfo;
 
-public class DirServerImpl
+public class DataServerClass
 		extends ServerClass
-		implements IFileServer
-{
-	protected DirServerImpl() throws RemoteException {
+		implements DataServer {
+	protected DataServerClass() throws RemoteException {
 		super();
 		// TODO Auto-generated constructor stub
 	}
@@ -27,7 +26,7 @@ public class DirServerImpl
 	private String basePathName;
 	private File basePath;
 
-	protected DirServerImpl( String pathname) throws RemoteException {
+	protected DataServerClass( String pathname) throws RemoteException {
 		super();
 		this.basePathName = pathname;
 		basePath = new File(pathname);
@@ -85,7 +84,7 @@ public class DirServerImpl
 				// do nothing - already started with rmiregistry
 			}
 
-			DirServerImpl server = new DirServerImpl( path);
+			DataServerClass server = new DataServerClass( path);
 			Naming.rebind( "/myFileServer", server);
 			System.out.println( "DirServer bound in registry");
 		} catch( Throwable th) {
