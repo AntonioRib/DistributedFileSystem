@@ -1,6 +1,16 @@
 package client;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.util.List;
+
+import server.ServerInfo;
+import server.contactServer.ContactServer;
 
 /**
  * Classe base do cliente
@@ -21,7 +31,16 @@ public class FileClient
 	 */
 	protected String[] servers( String name ) {
 		System.err.println( "exec: servers");
-		//TODO: completar
+			ContactServer server;
+			try {
+				server = (ContactServer) Naming.lookup("//localhost/contactServer");
+				String[] servers = server.getServers();
+				for(int i = 0; i<servers.length; i++)
+					System.out.println(servers[i]);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		return null;
 	}
 	
