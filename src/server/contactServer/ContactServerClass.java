@@ -18,27 +18,35 @@ public class ContactServerClass extends ServerClass implements ContactServer {
 	
 	
 	private Map<String, List<ServerInfo>> swarm;
-	//private List<ServerInfo> servers;
 
 	
 	protected ContactServerClass() throws RemoteException {
 		super();
 		this.swarm = new HashMap<String, List<ServerInfo>>();
-		List<ServerInfo> a = new ArrayList<ServerInfo>();
-		a.add(new ServerInfo("batata", "batata"));
-		swarm.put("teste", a);
-	//	this.servers = new ArrayList<ServerInfo>();
-	//	servers.add(new ServerInfo("potato", "catota"));
 	}
 	
-	public String[] getServers() throws Exception {
+	public String[] getServers() throws RemoteException {
 		if(swarm.size() == 0){
-			throw new Exception("Não existem servers"); //mudar para excepção nossa
+			//throw new NoServersConnectedException("Não existem servers"); 
+			return null;
 		}
 		
-		String[] servers = swarm.keySet().toArray(new String[swarm.size()]);
-
-		return servers;
+		return swarm.keySet().toArray(new String[swarm.size()]);
+	}
+	
+	public String[] getURL(String name) throws RemoteException {
+		if(swarm.size() == 0){
+			//throw new NoServersConnectedException("Não existem servers"); 
+			return null;
+		}
+		
+		List<ServerInfo> servers = swarm.get(name);
+		String[] serverURLs = new String[servers.size()]; 
+		for(int i = 0; i<servers.size(); i++){
+			serverURLs[i] = servers.get(i).getURL();
+		}
+		
+		return serverURLs;
 	}
 	
 	@SuppressWarnings("deprecation")
