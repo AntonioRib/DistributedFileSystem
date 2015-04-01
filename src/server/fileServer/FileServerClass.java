@@ -1,4 +1,4 @@
-package server.dataServer;
+package server.fileServer;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,10 +13,10 @@ import java.util.Date;
 import server.ServerClass;
 import client.FileInfo;
 
-public class DataServerClass
+public class FileServerClass
 		extends ServerClass
-		implements DataServer {
-	protected DataServerClass() throws RemoteException {
+		implements FileServer {
+	protected FileServerClass() throws RemoteException {
 		super();
 		// TODO Auto-generated constructor stub
 	}
@@ -26,7 +26,7 @@ public class DataServerClass
 	private String basePathName;
 	private File basePath;
 
-	protected DataServerClass( String pathname) throws RemoteException {
+	protected FileServerClass(String pathname) throws RemoteException {
 		super();
 		this.basePathName = pathname;
 		basePath = new File(pathname);
@@ -71,7 +71,7 @@ public class DataServerClass
 			if( args.length > 0)
 				path = args[0];
 
-			System.getProperties().put( "java.security.policy", "policy.all");
+			System.getProperties().put( "java.security.policy", "src/server/policy.all");
 
 			if( System.getSecurityManager() == null) {
 				System.setSecurityManager( new RMISecurityManager());
@@ -84,9 +84,9 @@ public class DataServerClass
 				// do nothing - already started with rmiregistry
 			}
 
-			DataServerClass server = new DataServerClass( path);
+			FileServerClass server = new FileServerClass( path);
 			Naming.rebind( "/myFileServer", server);
-			System.out.println( "DirServer bound in registry");
+			System.out.println( "FileServer bound in registry");
 		} catch( Throwable th) {
 			th.printStackTrace();
 		}

@@ -1,4 +1,4 @@
-package server.dataServer;
+package server.fileServer;
 
 import java.io.IOException;
 import java.rmi.*;
@@ -7,7 +7,7 @@ import java.util.*;
 import server.Server;
 import client.FileInfo;
 
-public interface DataServer extends Server
+public interface FileServer extends Server
 {
 	/**
 	 * Lista nome de ficheiros num dado directorio

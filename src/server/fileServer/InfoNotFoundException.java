@@ -1,4 +1,4 @@
-package server.dataServer;
+package server.fileServer;
 
 
 public class InfoNotFoundException

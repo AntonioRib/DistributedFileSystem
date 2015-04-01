@@ -1,6 +1,16 @@
 package client;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.util.List;
+
+import server.ServerInfo;
+import server.contactServer.ContactServer;
 
 /**
  * Classe base do cliente
@@ -18,11 +28,25 @@ public class FileClient
 	/**
 	 * Devolve um array com os servidores a correr caso o name== null ou o URL dos
 	 * servidores com nome name.
+	 * @throws NotBoundException 
+	 * @throws RemoteException 
+	 * @throws MalformedURLException 
 	 */
-	protected String[] servers( String name ) {
+	protected String[] servers(String name) throws MalformedURLException, RemoteException {
 		System.err.println( "exec: servers");
-		//TODO: completar
-		return null;
+			ContactServer server;
+			try {
+				server = (ContactServer) Naming.lookup("rmi://"+contactServerURL);
+				if(name == null){
+					return server.getServers();
+				}
+				return server.getURL(name);
+			} catch (NotBoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				
+			}
+			return null;
 	}
 	
 	/**
@@ -119,7 +143,7 @@ public class FileClient
 				break;
 			String[] cmd = line.split(" ");
 			if( cmd[0].equalsIgnoreCase("servers")) {
-				String[] s = servers( cmd.length == 1 ? null : cmd[2]);
+				String[] s = servers( cmd.length == 1 ? null : cmd[1]);
 				
 				if( s == null)
 					System.out.println( "error");
