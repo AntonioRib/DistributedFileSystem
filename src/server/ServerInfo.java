@@ -1,20 +1,17 @@
 package server;
 
-public class ServerInfo {
-	
-	private String name, url;
-	
-	public ServerInfo(String name, String url) {
-		this.name = name;
-		this.url = url;
-	}
-	
-	public String getName() {
-		return name;
-	}
-	
-	public String getURL() {
-		return url;
-	}
+import java.io.Serializable;
 
+public interface ServerInfo extends Serializable {
+
+	String getAddress();
+	
+	String getHost();
+	
+	String getName();
+	
+	long getLastHeartbeat();
+	
+	void setLastHeartbeat(long time);
+	
 }
