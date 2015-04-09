@@ -5,8 +5,6 @@ import java.rmi.RemoteException;
 
 import server.ServerInfo;
 import server.rmi.ServerRMI;
-import server.ws.ServerInfoClassWS;
-import server.ws.ServerWS;
 
 public interface ContactServerRMI extends ServerRMI {
 

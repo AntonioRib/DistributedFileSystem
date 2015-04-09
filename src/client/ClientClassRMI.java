@@ -9,12 +9,12 @@ import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
-import fileSystem.FileInfo;
-import fileSystem.FileSystem;
-import fileSystem.InfoNotFoundException;
 import server.ServerInfo;
 import server.contactServer.rmi.ContactServerRMI;
 import server.fileServer.rmi.FileServerRMI;
+import fileSystem.FileInfo;
+import fileSystem.FileSystem;
+import fileSystem.InfoNotFoundException;
 
 /**
  * Classe base do cliente

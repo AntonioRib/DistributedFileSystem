@@ -1,11 +1,7 @@
 package server.contactServer.ws;
 
-import java.net.UnknownHostException;
-import java.rmi.RemoteException;
-
 import server.ServerInfo;
-import server.rmi.ServerRMI;
-import server.ws.ServerInfoClassWS;
+import server.ServerInfoClass;
 import server.ws.ServerWS;
 
 public interface ContactServerWS extends ServerWS {
@@ -14,9 +10,9 @@ public interface ContactServerWS extends ServerWS {
 
 	String[] getFileServersByName(String name);
 
-	ServerInfo getFileServerByURL(String URL);
+	ServerInfoClass getFileServerByURL(String URL);
 
-	ServerInfo getFileServerByName(String name);
+	ServerInfoClass getFileServerByName(String name);
 
 	void addFileServer(String host, String name);
 

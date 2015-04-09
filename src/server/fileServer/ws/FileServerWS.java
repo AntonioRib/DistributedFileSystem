@@ -4,9 +4,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.rmi.RemoteException;
 
+import server.ws.ServerWS;
 import fileSystem.FileInfo;
 import fileSystem.InfoNotFoundException;
-import server.ws.ServerWS;
 
 public interface FileServerWS extends ServerWS {
 

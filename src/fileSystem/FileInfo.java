@@ -1,6 +1,6 @@
 package fileSystem;
 
-import java.util.*;
+import java.util.Date;
 
 public class FileInfo implements java.io.Serializable
 {
@@ -18,6 +18,7 @@ public class FileInfo implements java.io.Serializable
 		this.isFile = isFile;
 	}
 	
+	@Override
 	public String toString() {
 		return "Name : " + name + "\nLength: " + length + "\nData modified: " + modified + "\nisFile : " + isFile; 
 	}

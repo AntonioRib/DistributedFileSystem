@@ -4,10 +4,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.rmi.RemoteException;
 
+import server.rmi.ServerRMI;
 import fileSystem.FileInfo;
 import fileSystem.InfoNotFoundException;
-import server.rmi.ServerRMI;
-import server.ws.ServerWS;
 
 public interface FileServerRMI extends ServerRMI {
 

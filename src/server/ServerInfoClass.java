@@ -1,44 +1,39 @@
-package server.ws;
+package server;
 
-import javax.jws.WebMethod;
-import javax.jws.WebService;
 
-import server.ServerInfo;
-
-@WebService
-public class ServerInfoClassWS implements ServerInfo {
+public class ServerInfoClass implements ServerInfo {
 	
 	private static final long serialVersionUID = 1L;
 	
 	private String address;
 	private long lastHeartbeat;
 	
-	public ServerInfoClassWS(String address) {
+	public ServerInfoClass(String address) {
 		this.address = address;
 		this.lastHeartbeat = System.currentTimeMillis();
 	}
 	
-	@WebMethod
+	@Override
 	public String getAddress() {
 		return address;
 	}
 	
-	@WebMethod
+	@Override
 	public String getHost() {
 		return address.substring(2).split("/")[0];
 	}
 	
-	@WebMethod
+	@Override
 	public String getName() {
 		return address.substring(2).split("/")[1];
 	}
 	
-	@WebMethod
+	@Override
 	public long getLastHeartbeat() {
 		return lastHeartbeat;
 	}
 	
-	@WebMethod
+	@Override
 	public void setLastHeartbeat(long time) {
 		this.lastHeartbeat = time;
 	}
