@@ -27,7 +27,23 @@ public class FileServerClassWS extends ServerClassWS implements FileServerWS {
 
 	private String contactServerURL;
 
-	protected FileServerClassWS(String name, final String contactServerURL) {
+	public FileServerClassWS() {
+
+		super("SD");
+		this.contactServerURL = "//localhost/fileServer";
+
+		/*((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+		this.getHost(), this.getName());*/
+
+		/*new Thread() {
+	    public void run() {
+		heartbeat();
+	    }
+	}.start();
+    }*/
+	}
+	
+	public FileServerClassWS(String name, final String contactServerURL) {
 
 		super(name);
 		this.contactServerURL = contactServerURL;

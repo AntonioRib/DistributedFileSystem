@@ -20,8 +20,14 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 	private static final long serialVersionUID = 1L;
 
 	private ConcurrentMap<String, ConcurrentMap<String, ServerInfoClass>> servers;
+	
+	public ContactServerClassWS() {
+		super("contactServer");
+		servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfoClass>>();
+	}
 
-	protected ContactServerClassWS(String name) {
+
+	public ContactServerClassWS(String name) {
 		super(name);
 		servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfoClass>>();
 	}
@@ -120,7 +126,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 	@WebMethod(exclude=true)
 	public static void main(String args[]) throws Exception {
 		try {
-			ContactServerWS cs = new ContactServerClassWS("contactServer");
+			ContactServerWS cs = new ContactServerClassWS();
 			Endpoint.publish(
 					"http://localhost:8000/ContactServer",
 					cs); 
