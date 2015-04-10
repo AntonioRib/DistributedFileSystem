@@ -128,7 +128,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 		try {
 			ContactServerWS cs = new ContactServerClassWS();
 			Endpoint.publish(
-					"http://localhost:8000/ContactServer",
+					"http://localhost:8080/ContactServer",
 					cs); 
 			System.out.println("ContactServer bound in registry");
 			System.out.println("//" + cs.getHost() + '/' + cs.getName());
