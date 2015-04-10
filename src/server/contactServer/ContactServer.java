@@ -8,5 +8,6 @@ import server.ServerInfo;
 
 public interface ContactServer extends Server {
 	//Interface que conterá todos os métodos respéctivos ao servidor de contacto.
-	String[] getServers() throws RemoteException, Exception;
+	String[] getServers() throws RemoteException;
+	String[] getURL(String name) throws RemoteException;
 }
