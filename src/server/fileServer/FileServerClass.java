@@ -1,96 +1,159 @@
 package server.fileServer;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.rmi.Naming;
-import java.rmi.RMISecurityManager;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
-import java.rmi.server.UnicastRemoteObject;
-import java.util.Date;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.MulticastSocket;
+import java.net.UnknownHostException;
 
+import fileSystem.FileInfo;
+import fileSystem.FileSystem;
+import fileSystem.InfoNotFoundException;
 import server.ServerClass;
-import client.FileInfo;
+import server.ServerInfo;
+import server.contactServer.ContactServer;
 
-public class FileServerClass
-		extends ServerClass
-		implements FileServer {
-	protected FileServerClass() throws RemoteException {
-		super();
-		// TODO Auto-generated constructor stub
-	}
+public class FileServerClass extends ServerClass implements FileServer {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private String basePathName;
-	private File basePath;
+    private String contactServerURL;
 
-	protected FileServerClass(String pathname) throws RemoteException {
-		super();
-		this.basePathName = pathname;
-		basePath = new File(pathname);
-	}
-
-	@Override
-	public String[] dir(String path) throws RemoteException, InfoNotFoundException {
-		File f = new File( basePath, path);
-		if( f.exists())
-			return f.list();
-		else
-			throw new InfoNotFoundException( "Directory not found :" + path);
-	}
-
-	@Override
-	public FileInfo getFileInfo(String path, String name) throws RemoteException, InfoNotFoundException {
-		File dir = new File( basePath, path);
-		if( dir.exists()) {
-			File f = new File( dir, name);
-			if( f.exists())
-				return new FileInfo( path, f.length(), new Date(f.lastModified()), f.isFile());
-			else
-				throw new InfoNotFoundException( "File not found :" + name);
-		} else
-			throw new InfoNotFoundException( "Directory not found :" + path);
-	}
-
+    protected FileServerClass(String name, final String contactServerURL)
+	    throws RemoteException, MalformedURLException, NotBoundException,
+	    UnknownHostException {
 	
-	public byte[] getFile(String path, String name) throws IOException {
-		
-		RandomAccessFile f = new RandomAccessFile(basePath + "/" + path + "/" + name,"r");
-		byte[] b = new byte[(int) f.length()];
-		f.readFully(b);
-		f.close();
-		return b;
-	}
+	super(name);
+	Naming.rebind('/' + name, this);
+	this.contactServerURL = contactServerURL;
 	
-	@SuppressWarnings("deprecation")
-	public static void main( String args[]) throws Exception {
-		try {
-			String path = ".";
-			if( args.length > 0)
-				path = args[0];
+	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+		this.getHost(), this.getName());
 
-			System.getProperties().put( "java.security.policy", "src/server/policy.all");
+	new Thread() {
+	    public void run() {
+		heartbeat();
+	    }
+	}.start();
+    }
 
-			if( System.getSecurityManager() == null) {
-				System.setSecurityManager( new RMISecurityManager());
-			}
+    private void heartbeat(){
+	try {
+	    for (;;) {
+		((ContactServer) Naming.lookup(contactServerURL))
+			.receiveAliveSignal(getHost(), getName());
+		Thread.sleep(1000);
+	    }
+	} catch (RemoteException | MalformedURLException
+		| NotBoundException | InterruptedException e) {
+	    e.printStackTrace();
+	}
+    }
+    
+    @Override
+    public String[] dir(String path) throws RemoteException,
+	    InfoNotFoundException {
+	return FileSystem.dir(path);
+    }
 
-			try { // start rmiregistry
-				LocateRegistry.createRegistry( 1099);
-			} catch( RemoteException e) { 
-				// if not start it
-				// do nothing - already started with rmiregistry
-			}
+    @Override
+    public FileInfo getFileInfo(String path) throws RemoteException,
+	    InfoNotFoundException {
+	return FileSystem.getFileInfo(path);
+    }
 
-			FileServerClass server = new FileServerClass( path);
-			Naming.rebind( "/myFileServer", server);
-			System.out.println( "FileServer bound in registry");
-		} catch( Throwable th) {
-			th.printStackTrace();
-		}
+    @Override
+    public boolean makeDir(String name) throws RemoteException {
+	return FileSystem.makeDir(name);
+    }
+
+    @Override
+    public boolean removeFile(String path, boolean isFile)
+	    throws RemoteException {
+	return FileSystem.removeFile(path, isFile);
+    }
+
+    @Override
+    public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
+	    String toPath) throws IOException {
+
+	byte[] in = FileSystem.getData(fromPath);
+
+	return getFileServer(toIsURL, toServer).receiveFile(toPath, in);
+    }
+
+    @Override
+    public byte[] getFile(String fromPath) throws IOException {
+	return FileSystem.getData(fromPath);
+    }
+
+    @Override
+    public boolean receiveFile(String toPath, byte[] data) throws IOException {
+	return FileSystem.createFile(toPath, data);
+    }
+
+    private FileServer getFileServer(boolean isURL, String server)
+	    throws RemoteException {
+	try {
+	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
+	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
+		    .getFileServerByName(server);
+	    return (FileServer) Naming.lookup(fs.getAddress());
+	} catch (UnknownHostException e) {
+	    e.printStackTrace();
+	} catch (MalformedURLException e) {
+	    e.printStackTrace();
+	} catch (NotBoundException e) {
+	    e.printStackTrace();
 	}
 
+	return null;
+    }
+
+    @SuppressWarnings("deprecation")
+    public static void main(String args[]) throws Exception {
+	try {
+	    if (args.length < 1) {
+		System.out
+			.println("Use: java server.fileServer.FileServerClass serverName");
+		return;
+	    }
+
+	    String name = args[0];
+	    
+	    System.getProperties().put("java.security.policy", "policy.all");
+
+	    if (System.getSecurityManager() == null) {
+		System.setSecurityManager(new java.rmi.RMISecurityManager());
+	    }
+
+	    try { // start rmiregistry
+		LocateRegistry.createRegistry(1099);
+	    } catch (RemoteException e) {
+		// if not start it
+		// do nothing - already started with rmiregistry
+	    }
+	    
+	    
+	    InetAddress group = InetAddress.getByName("239.255.255.255");
+	    MulticastSocket sock = new MulticastSocket(5000);
+	    sock.joinGroup(group);
+	    
+	    byte buf[] = new byte[128];
+	    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+	    sock.receive(contactServerResponse);
+
+	    FileServer fs = new FileServerClass(name, new String(contactServerResponse.getData()).trim());
+	    System.out.println("FileServer bound in registry");
+	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
+	} catch (Throwable th) {
+	    th.printStackTrace();
+	}
+    }
 
 }

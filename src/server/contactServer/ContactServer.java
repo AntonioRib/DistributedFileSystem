@@ -1,13 +1,26 @@
 package server.contactServer;
 
+import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-import java.util.List;
 
 import server.Server;
 import server.ServerInfo;
 
 public interface ContactServer extends Server {
-	//Interface que conterá todos os métodos respéctivos ao servidor de contacto.
-	String[] getServers() throws RemoteException;
-	String[] getURL(String name) throws RemoteException;
+
+	String[] listFileServers() throws RemoteException;
+
+	String[] getFileServersByName(String name) throws RemoteException,
+			UnknownHostException;
+
+	ServerInfo getFileServerByURL(String URL) throws RemoteException,
+			UnknownHostException;
+
+	ServerInfo getFileServerByName(String name) throws RemoteException;
+
+	void addFileServer(String host, String name) throws RemoteException,
+			UnknownHostException;
+
+	void receiveAliveSignal(String host, String name) throws RemoteException;
+
 }

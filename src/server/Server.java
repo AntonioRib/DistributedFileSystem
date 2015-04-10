@@ -4,7 +4,12 @@
 package server;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 public interface Server extends Remote {
-	//Interface que irá conter todos os métodos públicos comuns a qualquer server que possa ser implementado.
+
+	String getName() throws RemoteException;
+
+	String getHost() throws RemoteException;
+
 }
