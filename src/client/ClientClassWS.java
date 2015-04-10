@@ -3,25 +3,25 @@ package client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.MulticastSocket;
 import java.net.URL;
-import java.net.UnknownHostException;
-import java.rmi.Naming;
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.List;
 
 import javax.xml.namespace.QName;
 
+import server.ServerInfo;
+import server.contactServer.ws.services.ContactServerClassWS;
+import server.contactServer.ws.services.ContactServerClassWSService;
+import server.contactServer.ws.services.ServerInfoClass;
+import server.fileServer.ws.FileServerWS;
+import server.fileServer.ws.services.FileServerClassWSService;
 import fileSystem.FileInfo;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
-import server.ServerInfo;
-import server.contactServer.ws.ContactServerWS;
-import server.contactServer.ws.services.ContactServerClassWS;
-import server.contactServer.ws.services.ContactServerClassWSService;
-import server.fileServer.ws.FileServerWS;
-import server.fileServer.ws.services.FileServerClassWSService;
 
 /**
  * Classe base do cliente
@@ -48,16 +48,17 @@ public class ClientClassWS implements Client {
 	 */
 	private FileServerWS getFileServer(boolean isURL, String server) {
 		try {
+			System.out.println("http:"+contactServerURL+"?wsdl");
 			ContactServerClassWSService css = new ContactServerClassWSService(
-					new URL("http://"+contactServerURL+"/ContactServer?wsdl"),
-					new QName("http://server.contactServer.ws/", "ContactServerClassWSService"));
-			ContactServerWS cs = (ContactServerWS) css.getContactServerClassWSPort();
+					new URL("http:"+contactServerURL+"?wsdl"),
+					new QName("http://ws.contactServer.server/", "ContactServerClassWSService"));
+			ContactServerClassWS cs = css.getContactServerClassWSPort();
 
-			ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
+			ServerInfoClass fs = isURL ? cs.getFileServerByURL(server) : cs
 					.getFileServerByName(server);
 			FileServerClassWSService fss = new FileServerClassWSService(
-					new URL("http://"+fs.getHost()+"/FileServer?wsdl"),
-					new QName("http://server.fileServer.ws/", "FileServerClassWSService"));
+					new URL("http://"+fs.getHost()+":8080/"+fs.getName()+"?wsdl"),
+					new QName("http://ws.fileServer.server/", "FileServerClassWSService"));
 			return (FileServerWS) fss.getFileServerClassWSPort();
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -71,8 +72,8 @@ public class ClientClassWS implements Client {
 	 */
 	protected String[] servers(String name) throws MalformedURLException {
 		System.err.println("exec: servers");
-			ContactServerClassWSService css = new ContactServerClassWSService(
-					new URL("http://"+contactServerURL+"/ContactServer?wsdl"),
+		ContactServerClassWSService css = new ContactServerClassWSService(
+					new URL("http:"+contactServerURL+"?wsdl"),
 					new QName("http://ws.contactServer.server/", "ContactServerClassWSService"));
 			ContactServerClassWS cs = css.getContactServerClassWSPort();
 			List<String> list = cs.listFileServers();
@@ -342,15 +343,24 @@ public class ClientClassWS implements Client {
 	}
 
 	public static void main(String[] args) {
-		if (args.length != 1) {
-			System.out.println("Use: java client.FileClient URL");
-			return;
-		}
 		try {
-			new ClientClassWS(args[0]).doit();
+		    
+		    InetAddress group = InetAddress.getByName("239.255.255.255");
+		    MulticastSocket sock = new MulticastSocket(5000);
+		    sock.joinGroup(group);
+		    
+		    byte buf[] = new byte[128];
+		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerResponse);
+		    
+		    System.out.println("Got response from contact server!");
+		    
+		    new ClientClassWS(new String(contactServerResponse.getData()).trim()).doit();
+		    
+		    
 		} catch (IOException e) {
-			System.err.println("Error:" + e.getMessage());
-			e.printStackTrace();
+		    System.err.println("Error:" + e.getMessage());
+		    e.printStackTrace();
 		}
 	}
 

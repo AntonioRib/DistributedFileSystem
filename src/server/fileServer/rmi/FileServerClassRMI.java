@@ -1,7 +1,10 @@
 package server.fileServer.rmi;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -116,33 +119,41 @@ public class FileServerClassRMI extends ServerClassRMI implements FileServerRMI 
 	@SuppressWarnings("deprecation")
 	public static void main(String args[]) throws Exception {
 		try {
-			if (args.length < 2) {
-				System.out
-				.println("Use: java server.fileServer.FileServerClass serverName contactServerURL");
-				return;
-			}
+		    if (args.length < 1) {
+			System.out
+				.println("Use: java server.fileServer.FileServerClass serverName");
+			return;
+		    }
 
-			String name = args[0];
-			String contactServerURL = args[1];
+		    String name = args[0];
+		    
+		    System.getProperties().put("java.security.policy", "policy.all");
 
-			System.getProperties().put("java.security.policy", "policy.all");
+		    if (System.getSecurityManager() == null) {
+			System.setSecurityManager(new java.rmi.RMISecurityManager());
+		    }
 
-			if (System.getSecurityManager() == null) {
-				System.setSecurityManager(new java.rmi.RMISecurityManager());
-			}
+		    try { // start rmiregistry
+		    	LocateRegistry.createRegistry(1099);
+		    } catch (RemoteException e) {
+			// if not start it
+			// do nothing - already started with rmiregistry
+		    }
+		    
+		    
+		    InetAddress group = InetAddress.getByName("239.255.255.255");
+		    MulticastSocket sock = new MulticastSocket(5000);
+		    sock.joinGroup(group);
+		    
+		    byte buf[] = new byte[128];
+		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerResponse);
 
-			try { // start rmiregistry
-				LocateRegistry.createRegistry(4000);
-			} catch (RemoteException e) {
-				// if not start it
-				// do nothing - already started with rmiregistry
-			}
-
-			FileServerRMI fs = new FileServerClassRMI(name, contactServerURL);
-			System.out.println("FileServer bound in registry");
-			System.out.println("//" + fs.getHost() + '/' + fs.getName());
+		    FileServerRMI fs = new FileServerClassRMI(name, new String(contactServerResponse.getData()).trim());
+		    System.out.println("FileServer bound in registry");
+		    System.out.println("//" + fs.getHost() + '/' + fs.getName());
 		} catch (Throwable th) {
-			th.printStackTrace();
+		    th.printStackTrace();
 		}
 	}
 

@@ -1,5 +1,9 @@
 package server.contactServer.ws;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -20,7 +24,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 	private static final long serialVersionUID = 1L;
 
 	private ConcurrentMap<String, ConcurrentMap<String, ServerInfoClass>> servers;
-	
+
 	public ContactServerClassWS() {
 		super("contactServer");
 		servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfoClass>>();
@@ -55,6 +59,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 	@Override
 	@WebMethod
 	public void addFileServer(String host, String name) {
+		System.out.println("Adicionei o servidor "+host+" com o nome"+name);
 		ServerInfoClass fs = new ServerInfoClass("//" + host + "/" + name);
 		ConcurrentMap<String, ServerInfoClass> tmp = updateAndGetServers(name);
 		if (tmp == null)
@@ -126,10 +131,35 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 	@WebMethod(exclude=true)
 	public static void main(String args[]) throws Exception {
 		try {
-			ContactServerWS cs = new ContactServerClassWS();
+			final ContactServerWS cs = new ContactServerClassWS();
 			Endpoint.publish(
-					"http://localhost:8080/ContactServer",
+					"http://"+cs.getHost()+"/"+cs.getName(),
 					cs); 
+
+			final InetAddress group = InetAddress.getByName("239.255.255.255");
+			final MulticastSocket sock = new MulticastSocket(5000);
+			sock.joinGroup(group);
+
+			new Thread() {
+				public void run() {
+					try {
+
+						String broadcast = "//" + cs.getHost() + '/' + "contactServer";
+
+						for (;;) {
+							sock.send( new DatagramPacket(broadcast.getBytes(), broadcast.length(), group, 5000) );
+							//System.out.println("Broadcasting!");
+							Thread.sleep(2500);
+						}
+
+					} catch (IOException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}.start();
+
 			System.out.println("ContactServer bound in registry");
 			System.out.println("//" + cs.getHost() + '/' + cs.getName());
 

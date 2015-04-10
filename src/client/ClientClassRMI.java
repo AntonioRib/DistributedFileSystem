@@ -3,7 +3,10 @@ package client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -358,15 +361,24 @@ public class ClientClassRMI implements Client {
 	}
 
 	public static void main(String[] args) {
-		if (args.length != 1) {
-			System.out.println("Use: java client.FileClient URL");
-			return;
-		}
 		try {
-			new ClientClassRMI(args[0]).doit();
+		    
+		    InetAddress group = InetAddress.getByName("239.255.255.255");
+		    MulticastSocket sock = new MulticastSocket(5000);
+		    sock.joinGroup(group);
+		    
+		    byte buf[] = new byte[128];
+		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerResponse);
+		    
+		    System.out.println("Got response from contact server!");
+		    
+		    new ClientClassRMI(new String(contactServerResponse.getData()).trim()).doit();
+		    
+		    
 		} catch (IOException e) {
-			System.err.println("Error:" + e.getMessage());
-			e.printStackTrace();
+		    System.err.println("Error:" + e.getMessage());
+		    e.printStackTrace();
 		}
 	}
 

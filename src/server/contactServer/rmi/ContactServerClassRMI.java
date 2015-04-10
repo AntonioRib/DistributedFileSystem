@@ -1,6 +1,10 @@
 package server.contactServer.rmi;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -135,9 +139,34 @@ public class ContactServerClassRMI extends ServerClassRMI implements ContactServ
 				// do nothing - already started with rmiregistry
 			}
 
-			ContactServerRMI cs = new ContactServerClassRMI("contactServer");
-			System.out.println("ContactServer bound in registry");
-			System.out.println("//" + cs.getHost() + '/' + cs.getName());
+			final ContactServerRMI cs = new ContactServerClassRMI("contactServer");
+		    
+		    final InetAddress group = InetAddress.getByName("239.255.255.255");
+		    final MulticastSocket sock = new MulticastSocket(5000);
+		    sock.joinGroup(group);
+		    
+		    new Thread() {
+			public void run() {
+	        	    try {
+	        		
+	        		String broadcast = "//" + cs.getHost() + '/' + "contactServer";
+	        		
+	        		for (;;) {
+	        		    sock.send( new DatagramPacket(broadcast.getBytes(), broadcast.length(), group, 5000) );
+	        		    System.out.println("Broadcasting!");
+	        		    Thread.sleep(2500);
+	        		}
+	        		
+			    } catch (IOException e) {
+				e.printStackTrace();
+			    } catch (InterruptedException e) {
+				e.printStackTrace();
+			    }
+			}
+		    }.start();
+		 
+		    System.out.println("ContactServer bound in registry");
+		    System.out.println("//" + cs.getHost() + '/' + cs.getName());
 
 		} catch (Throwable th) {
 			th.printStackTrace();

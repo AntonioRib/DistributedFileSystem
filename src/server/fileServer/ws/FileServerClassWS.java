@@ -2,7 +2,11 @@ package server.fileServer.ws;
 
 import java.io.IOException;
 import java.net.BindException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.MulticastSocket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
@@ -10,10 +14,14 @@ import java.rmi.RemoteException;
 
 import javax.jws.WebMethod;
 import javax.jws.WebService;
+import javax.xml.namespace.QName;
 import javax.xml.ws.Endpoint;
 
 import server.ServerInfo;
 import server.contactServer.rmi.ContactServerRMI;
+import server.contactServer.ws.ContactServerWS;
+import server.contactServer.ws.services.ContactServerClassWS;
+import server.contactServer.ws.services.ContactServerClassWSService;
 import server.fileServer.rmi.FileServerRMI;
 import server.ws.ServerClassWS;
 import fileSystem.FileInfo;
@@ -42,35 +50,48 @@ public class FileServerClassWS extends ServerClassWS implements FileServerWS {
 	}.start();
     }*/
 	}
-	
+
 	public FileServerClassWS(String name, final String contactServerURL) {
 
 		super(name);
 		this.contactServerURL = contactServerURL;
 
-		/*((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName());*/
+		ContactServerClassWSService css;
+		try {
+			css = new ContactServerClassWSService(
+					new URL("http:"+contactServerURL+"?wsdl"),
+					new QName("http://ws.contactServer.server/", "ContactServerClassWSService"));
+			ContactServerClassWS cs = css.getContactServerClassWSPort();
+			cs.addFileServer(this.getHost(), this.getName());
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
 
-		/*new Thread() {
-	    public void run() {
-		heartbeat();
-	    }
-	}.start();
-    }*/
+		new Thread() {
+			public void run() {
+				heartbeat();
+			}
+		}.start();
 	}
 
-	/* private void heartbeat(){
-	try {
-	    for (;;) {
-		((ContactServerRMI) Naming.lookup(contactServerURL))
-			.receiveAliveSignal(getHost(), getName());
-		Thread.sleep(1000);
-	    }
-	} catch (RemoteException | MalformedURLException
-		| NotBoundException | InterruptedException e) {
-	    e.printStackTrace();
+	private void heartbeat(){
+		try {
+			for (;;) {
+				try {
+					ContactServerClassWSService css = new ContactServerClassWSService(
+							new URL("http:"+contactServerURL+"?wsdl"),
+							new QName("http://ws.contactServer.server/", "ContactServerClassWSService"));
+					ContactServerClassWS cs = css.getContactServerClassWSPort();
+					cs.receiveAliveSignal(this.getHost(), this.getName());;
+				} catch (MalformedURLException e) {
+					e.printStackTrace();
+				}
+				Thread.sleep(1000);
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
-    }*/
 
 	@Override
 	@WebMethod
@@ -152,29 +173,32 @@ public class FileServerClassWS extends ServerClassWS implements FileServerWS {
 	@SuppressWarnings("deprecation")
 	public static void main(String args[]) throws Exception {
 		try {
-			if (args.length < 2) {
+			if (args.length < 1) {
 				System.out
-				.println("Use: java server.fileServer.FileServerClass serverName contactServerURL");
+				.println("Use: java server.fileServer.FileServerClass serverName");
 				return;
 			}
 
 			String name = args[0];
-			String contactServerURL = args[1];
 
 			System.getProperties().put("java.security.policy", "policy.all");
 
-			if (System.getSecurityManager() == null) {
-				System.setSecurityManager(new java.rmi.RMISecurityManager());
-			}
+			InetAddress group = InetAddress.getByName("239.255.255.255");
+			MulticastSocket sock = new MulticastSocket(5000);
+			sock.joinGroup(group);
 
-			FileServerWS fs = new FileServerClassWS(name, contactServerURL);
+			byte buf[] = new byte[128];
+			DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+			sock.receive(contactServerResponse);
+
+			FileServerWS fs = new FileServerClassWS(name, new String(contactServerResponse.getData()).trim());
 			Endpoint.publish(
-					"http://localhost:8000/FileServer",
-					fs);
-			
+					"http://"+fs.getHost()+":8080/"+fs.getName(),
+					fs); 
+
 			System.out.println("FileServer bound in registry");
 			System.out.println("//" + fs.getHost() + '/' + fs.getName());
-		}catch (Throwable th) {
+		} catch (Throwable th) {
 			th.printStackTrace();
 		}
 	}
