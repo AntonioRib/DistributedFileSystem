@@ -96,6 +96,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 		//	System.out.println("Recieving Heartbeat from: "+host+"/"+name);
 	}
 
+	@WebMethod
 	private ConcurrentMap<String, ServerInfoClass> updateAndGetServers(String name) {
 		ConcurrentMap<String, ServerInfoClass> serversName = servers.get(name);
 
@@ -103,8 +104,10 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 			return null;
 
 		for(ServerInfoClass server : serversName.values()){
+			System.out.println(server.getServerHost());
+			System.out.println(server.getServerName());
 			if(System.currentTimeMillis() - server.getLastHeartbeat() > HEARTBEATLIMIT){
-				serversName.remove(server.getHost());
+				serversName.remove(server.getServerHost());
 				System.out.println("Heartbeat time: "+(System.currentTimeMillis() - server.getLastHeartbeat()));
 				System.out.println("Servidor não deu sinal. Servidor eliminado.");
 
@@ -121,7 +124,7 @@ public class ContactServerClassWS extends ServerClassWS implements ContactServer
 		return servers.get(name);
 	}
 
-
+	@WebMethod
 	private void updateAndGetServers() {
 		for(String serverName : servers.keySet()){
 			updateAndGetServers(serverName);

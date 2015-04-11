@@ -99,7 +99,7 @@ public class ContactServerClassRMI extends ServerClassRMI implements ContactServ
 
 		for(ServerInfo server : serversName.values()){
 			if(System.currentTimeMillis() - server.getLastHeartbeat() > HEARTBEATLIMIT){
-				serversName.remove(server.getHost());
+				serversName.remove(server.getServerHost());
 				System.out.println("Heartbeat time: "+(System.currentTimeMillis() - server.getLastHeartbeat()));
 				System.out.println("Servidor não deu sinal. Servidor eliminado.");
 

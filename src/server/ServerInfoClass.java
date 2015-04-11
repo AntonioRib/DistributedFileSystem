@@ -19,12 +19,12 @@ public class ServerInfoClass implements ServerInfo {
 	}
 	
 	@Override
-	public String getHost() {
+	public String getServerHost() {
 		return address.substring(2).split("/")[0];
 	}
 	
 	@Override
-	public String getName() {
+	public String getServerName() {
 		return address.substring(2).split("/")[1];
 	}
 	
