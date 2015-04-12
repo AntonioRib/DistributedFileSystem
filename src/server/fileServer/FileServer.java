@@ -2,23 +2,32 @@ package server.fileServer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
+
+import javax.jws.WebMethod;
+import javax.jws.WebService;
 
 import fileSystem.FileInfo;
 import fileSystem.InfoNotFoundException;
-import server.Server;
 
-public interface FileServer extends Server {
+@WebService
+public interface FileServer extends Remote {
+    
+    	String getName() throws RemoteException;
+    	
+    	String getHost() throws RemoteException;
 
 	/**
 	 * Lista nome de ficheiros num dado directorio
 	 */
-	String[] dir(String path) throws RemoteException, InfoNotFoundException;
+	List<String> dir(String path) throws RemoteException, InfoNotFoundException;
 
 	/**
 	 * Devolve informacao sobre ficheiro.
 	 */
-	FileInfo getFileInfo(String path) throws RemoteException,
+	List<String> getFileInfo(String path) throws RemoteException,
 			InfoNotFoundException;
 
 	/**

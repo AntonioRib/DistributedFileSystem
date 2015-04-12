@@ -7,17 +7,23 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.MulticastSocket;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.List;
 
-import fileSystem.FileInfo;
-import fileSystem.FileSystem;
-import fileSystem.InfoNotFoundException;
+import javax.xml.namespace.QName;
+
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
+import server.fileServer.services.FileServerWSService;
+import fileSystem.FileInfo;
+import fileSystem.FileSystem;
+import fileSystem.InfoNotFoundException;
 
 /**
  * Classe base do cliente
@@ -25,7 +31,7 @@ import server.fileServer.FileServer;
  * @author nmp
  */
 public class FileClient {
-    
+
     String contactServerURL;
 
     protected FileClient(String url) {
@@ -48,7 +54,16 @@ public class FileClient {
 	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
 	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
 		    .getFileServerByName(server);
-	    return (FileServer) Naming.lookup(fs.getAddress());
+
+	    if (fs.isRMI())
+		return (FileServer) Naming.lookup(fs.getAddress());
+
+	    FileServerWSService css = new FileServerWSService(new URL("http://"
+		    + fs.getHost() + "/" + fs.getName()), new QName(
+		    "http://fileServer.server/", "FileServerWSService"));
+	    // FileServerWS a = css.getFileServerWSPort();
+	    return css.getFileServerWSPort();
+
 	} catch (UnknownHostException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -87,7 +102,7 @@ public class FileClient {
      * caso deve listar os ficheiro dum servidor com esse nome. Devolve null em
      * caso de erro. NOTA: nao deve lancar excepcao.
      */
-    protected String[] dir(String server, boolean isURL, String dir) {
+    protected List<String> dir(String server, boolean isURL, String dir) {
 	System.err.println("exec: ls " + dir + " no servidor " + server
 		+ " - e url : " + isURL);
 
@@ -175,12 +190,13 @@ public class FileClient {
      * deve listar os ficheiro dum servidor com esse nome. Devolve false em caso
      * de erro. NOTA: nao deve lancar excepcao.
      */
-    protected FileInfo getAttr(String server, boolean isURL, String path) {
+    protected List<String> getAttr(String server, boolean isURL, String path) {
 	System.err.println("exec: getattr " + path + " no servidor " + server
 		+ " - e url : " + isURL);
 	try {
-	    if (server == null)
+	    if (server == null) {
 		return FileSystem.getFileInfo(path);
+	    }
 	    return getFileServer(isURL, server).getFileInfo(path);
 	} catch (InfoNotFoundException e) {
 	    e.printStackTrace();
@@ -258,11 +274,11 @@ public class FileClient {
 		String dir = dirserver.length == 1 ? dirserver[0]
 			: dirserver[1];
 
-		String[] res = dir(server, isURL, dir);
+		List<String> res = dir(server, isURL, dir);
 		if (res != null) {
-		    System.out.println(res.length);
-		    for (int i = 0; i < res.length; i++)
-			System.out.println(res[i]);
+		    System.out.println(res.size());
+		    for (int i = 0; i < res.size(); i++)
+			System.out.println(res.get(i));
 		} else
 		    System.out.println("error");
 	    } else if (cmd[0].equalsIgnoreCase("mkdir")) {
@@ -312,9 +328,11 @@ public class FileClient {
 		String path = dirserver.length == 1 ? dirserver[0]
 			: dirserver[1];
 
-		FileInfo info = getAttr(server, isURL, path);
+		List<String> info = getAttr(server, isURL, path);
 		if (info != null) {
-		    System.out.println(info);
+		    for (String a : info) {
+			System.out.println(a);
+		    }
 		    System.out.println("success");
 		} else
 		    System.out.println("error");
@@ -362,20 +380,21 @@ public class FileClient {
 
     public static void main(String[] args) {
 	try {
-	    
+
 	    InetAddress group = InetAddress.getByName("239.255.255.255");
 	    MulticastSocket sock = new MulticastSocket(5000);
 	    sock.joinGroup(group);
-	    
+
 	    byte buf[] = new byte[128];
-	    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+	    DatagramPacket contactServerResponse = new DatagramPacket(buf,
+		    buf.length);
 	    sock.receive(contactServerResponse);
-	    
+
 	    System.out.println("Got response from contact server!");
-	    
-	    new FileClient(new String(contactServerResponse.getData()).trim()).doit();
-	    
-	    
+
+	    new FileClient(new String(contactServerResponse.getData()).trim())
+		    .doit();
+
 	} catch (IOException e) {
 	    System.err.println("Error:" + e.getMessage());
 	    e.printStackTrace();

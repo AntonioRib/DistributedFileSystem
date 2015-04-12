@@ -6,10 +6,12 @@ public class ServerInfoClass implements ServerInfo {
 	
 	private String address;
 	private long lastHeartbeat;
+	private boolean isRMI;
 	
-	public ServerInfoClass(String address) {
+	public ServerInfoClass(String address, boolean isRMI) {
 		this.address = address;
 		this.lastHeartbeat = System.currentTimeMillis();
+		this.isRMI = isRMI;
 	}
 	
 	public String getAddress() {
@@ -30,6 +32,10 @@ public class ServerInfoClass implements ServerInfo {
 	
 	public void setLastHeartbeat(long time) {
 		this.lastHeartbeat = time;
+	}
+	
+	public boolean isRMI() {
+	    	return isRMI;
 	}
 
 }

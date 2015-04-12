@@ -14,4 +14,5 @@ public interface ServerInfo extends Serializable {
 	
 	void setLastHeartbeat(long time);
 	
+	boolean isRMI();
 }

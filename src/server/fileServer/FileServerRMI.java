@@ -1,39 +1,45 @@
 package server.fileServer;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.MulticastSocket;
-import java.net.UnknownHostException;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.Enumeration;
+import java.util.List;
 
+import server.ServerInfo;
+import server.contactServer.ContactServer;
+import server.fileServer.services.FileServerWSService;
 import fileSystem.FileInfo;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
-import server.ServerClass;
-import server.ServerInfo;
-import server.contactServer.ContactServer;
 
-public class FileServerClass extends ServerClass implements FileServer {
+public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
     private static final long serialVersionUID = 1L;
 
-    private String contactServerURL;
+    private String name, contactServerURL;
 
-    protected FileServerClass(String name, final String contactServerURL)
+    protected FileServerRMI(String name, final String contactServerURL)
 	    throws RemoteException, MalformedURLException, NotBoundException,
 	    UnknownHostException {
-	
-	super(name);
+	super();
 	Naming.rebind('/' + name, this);
 	this.contactServerURL = contactServerURL;
+	this.name = name;
 	
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName());
+		this.getHost(), this.getName(), true);
 
 	new Thread() {
 	    public void run() {
@@ -55,30 +61,25 @@ public class FileServerClass extends ServerClass implements FileServer {
 	}
     }
     
-    @Override
-    public String[] dir(String path) throws RemoteException,
+    public List<String> dir(String path) throws RemoteException,
 	    InfoNotFoundException {
 	return FileSystem.dir(path);
     }
 
-    @Override
-    public FileInfo getFileInfo(String path) throws RemoteException,
+    public List<String> getFileInfo(String path) throws RemoteException,
 	    InfoNotFoundException {
 	return FileSystem.getFileInfo(path);
     }
 
-    @Override
     public boolean makeDir(String name) throws RemoteException {
 	return FileSystem.makeDir(name);
     }
 
-    @Override
     public boolean removeFile(String path, boolean isFile)
 	    throws RemoteException {
 	return FileSystem.removeFile(path, isFile);
     }
 
-    @Override
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
 	    String toPath) throws IOException {
 
@@ -87,12 +88,10 @@ public class FileServerClass extends ServerClass implements FileServer {
 	return getFileServer(toIsURL, toServer).receiveFile(toPath, in);
     }
 
-    @Override
     public byte[] getFile(String fromPath) throws IOException {
 	return FileSystem.getData(fromPath);
     }
 
-    @Override
     public boolean receiveFile(String toPath, byte[] data) throws IOException {
 	return FileSystem.createFile(toPath, data);
     }
@@ -103,7 +102,10 @@ public class FileServerClass extends ServerClass implements FileServer {
 	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
 	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
 		    .getFileServerByName(server);
-	    return (FileServer) Naming.lookup(fs.getAddress());
+	    if(fs.isRMI())
+		return (FileServer) Naming.lookup(fs.getAddress());
+	    FileServerWSService css = new FileServerWSService();
+	    return (FileServer) css.getFileServerWSPort();
 	} catch (UnknownHostException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -113,6 +115,37 @@ public class FileServerClass extends ServerClass implements FileServer {
 	}
 
 	return null;
+    }
+    
+    public String getName() {
+	return name;
+    }
+
+    public String getHost() {
+	return getLocalhost().toString().substring(1);
+    }
+
+    private InetAddress getLocalhost() {
+	try {
+	    try {
+		Enumeration<NetworkInterface> e = NetworkInterface
+			.getNetworkInterfaces();
+		while (e.hasMoreElements()) {
+		    NetworkInterface n = e.nextElement();
+		    Enumeration<InetAddress> ee = n.getInetAddresses();
+		    while (ee.hasMoreElements()) {
+			InetAddress i = ee.nextElement();
+			if (i instanceof Inet4Address && !i.isLoopbackAddress())
+			    return i;
+		    }
+		}
+	    } catch (SocketException e) {
+		// do nothing
+	    }
+	    return InetAddress.getLocalHost();
+	} catch (UnknownHostException e) {
+	    return null;
+	}
     }
 
     @SuppressWarnings("deprecation")
@@ -148,7 +181,7 @@ public class FileServerClass extends ServerClass implements FileServer {
 	    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
 	    sock.receive(contactServerResponse);
 
-	    FileServer fs = new FileServerClass(name, new String(contactServerResponse.getData()).trim());
+	    FileServer fs = new FileServerRMI(name, new String(contactServerResponse.getData()).trim());
 	    System.out.println("FileServer bound in registry");
 	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
 	} catch (Throwable th) {

@@ -5,26 +5,33 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 public class FileSystem {
 	
 
-	public static String[] dir(String path) throws InfoNotFoundException {
+	public static List<String> dir(String path) throws InfoNotFoundException {
 		File f = new File(path);
 		if (f.exists())
-			return f.list();
+			return Arrays.asList(f.list());
 		else
 			throw new InfoNotFoundException("Directory not found :" + path);
 	}
 
-	public static FileInfo getFileInfo(String path)
+	public static List<String> getFileInfo(String path)
 			throws InfoNotFoundException {
 		File f = new File(path);
-		if (f.exists())
-			return new FileInfo(path, f.length(), new Date(f.lastModified()),
-					f.isFile());
-		else
+		if (f.exists()){
+		    List<String> ls = new ArrayList();
+		    ls.add("Path: "+path);
+		    ls.add("Size: "+f.length());
+		    ls.add("Last Modified: "+new Date(f.lastModified()).toString());
+		    ls.add("É ficheiro:"+f.isFile());
+		    return ls;
+		} else
 			throw new InfoNotFoundException("File not found.");
 	}
 
