@@ -20,7 +20,6 @@ import java.util.List;
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.services.FileServerWSService;
-import fileSystem.FileInfo;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 
@@ -179,9 +178,13 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		    sock.joinGroup(group);
 		    
 		    byte buf[] = new byte[128];
-		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
-		    sock.receive(contactServerResponse);
-		    fs = new FileServerRMI(name, new String(contactServerResponse.getData()).trim());
+		    DatagramPacket contactServerBroadcast = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerBroadcast);
+		    sock.close();
+		    
+		    System.out.println("Got broadcast from contact server!");
+		    
+		    fs = new FileServerRMI(name, new String(contactServerBroadcast.getData()).trim());
 	    } else {
 	    	fs = new FileServerRMI(name, args[1]);
 	    }

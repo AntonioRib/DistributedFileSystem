@@ -18,9 +18,6 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import javax.jws.WebMethod;
-import javax.jws.WebService;
-
 import server.ServerInfo;
 import server.ServerInfoClass;
 
@@ -72,7 +69,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
 	    servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
 
 	servers.get(name).put(host, fs);
-	System.out.println("Adicionei um servidor.");
+	System.out.println("Added file server.");
     }
 
     public ServerInfo getFileServerByURL(String URL) throws RemoteException,
@@ -112,21 +109,16 @@ public class ContactServerClass extends UnicastRemoteObject implements
 	for (ServerInfo server : serversName.values()) {
 	    if (System.currentTimeMillis() - server.getLastHeartbeat() > 5000) {
 		serversName.remove(server.getHost());
-		System.out.println("Heartbeat time: "
-			+ (System.currentTimeMillis() - server
-				.getLastHeartbeat()));
 		System.out
-			.println("Servidor não deu sinal. Servidor eliminado.");
+			.println("Server " + server.getAddress() + " did not send alive signal, server removed.");
 
 	    }
 	}
 
 	servers.put(name, serversName);
 
-	if (serversName.size() == 0) {
+	if (serversName.size() == 0)
 	    servers.remove(name);
-	    System.out.println("Nome não possui servidores. Nome eliminado.");
-	}
 
 	return servers.get(name);
     }
@@ -193,6 +185,8 @@ public class ContactServerClass extends UnicastRemoteObject implements
 
 			InetAddress group = InetAddress
 				.getByName("239.255.255.255");
+			
+			// sock is never closed
 			MulticastSocket sock = new MulticastSocket(5000);
 			String broadcast = "//" + cs.getHost() + '/'
 				+ "contactServer";

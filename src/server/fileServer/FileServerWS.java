@@ -5,7 +5,6 @@ import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
-import java.rmi.server.UnicastRemoteObject;
 import java.util.Enumeration;
 import java.util.List;
 import java.net.DatagramPacket;
@@ -23,7 +22,6 @@ import javax.jws.WebService;
 import javax.xml.namespace.QName;
 import javax.xml.ws.Endpoint;
 
-import fileSystem.FileInfo;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 import server.ServerInfo;
@@ -199,13 +197,17 @@ public class FileServerWS implements FileServer {
 		    sock.joinGroup(group);
 		    
 		    byte buf[] = new byte[128];
-		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
-		    sock.receive(contactServerResponse);
-		    fs = new FileServerRMI(name, new String(contactServerResponse.getData()).trim());
+		    DatagramPacket contactServerBroadcast = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerBroadcast);
+		    sock.close();
+		    
+		    System.out.println("Got broadcast from contact server!");
+		    
+		    fs = new FileServerRMI(name, new String(contactServerBroadcast.getData()).trim());
 	    } else {
 	    	fs = new FileServerWS(name, args[1]);
 	    }
-	    System.out.println("FileServer bound in registry");
+	    System.out.println("FileServer published to URL");
 	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
 	} catch (Throwable th) {
 	    th.printStackTrace();

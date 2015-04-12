@@ -12,7 +12,6 @@ import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.namespace.QName;
@@ -21,7 +20,6 @@ import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
 import server.fileServer.services.FileServerWSService;
-import fileSystem.FileInfo;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 
@@ -61,14 +59,9 @@ public class FileClient {
 	    FileServerWSService css = new FileServerWSService(new URL("http://"
 		    + fs.getHost() + "/" + fs.getName()), new QName(
 		    "http://fileServer.server/", "FileServerWSService"));
-	    // FileServerWS a = css.getFileServerWSPort();
 	    return css.getFileServerWSPort();
 
-	} catch (UnknownHostException e) {
-	    e.printStackTrace();
-	} catch (MalformedURLException e) {
-	    e.printStackTrace();
-	} catch (NotBoundException e) {
+	} catch (UnknownHostException | MalformedURLException | NotBoundException e) {
 	    e.printStackTrace();
 	}
 
@@ -110,7 +103,9 @@ public class FileClient {
 	    if (server == null)
 		return FileSystem.dir(dir);
 	    return getFileServer(isURL, server).dir(dir);
-	} catch (RemoteException | InfoNotFoundException e) {
+	} catch (InfoNotFoundException e) {
+	    // does nothing, will return with error
+	} catch (RemoteException e) {
 	    e.printStackTrace();
 	}
 	return null;
@@ -199,7 +194,7 @@ public class FileClient {
 	    }
 	    return getFileServer(isURL, server).getFileInfo(path);
 	} catch (InfoNotFoundException e) {
-	    e.printStackTrace();
+	    // does nothing, will return with error
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	}
@@ -242,7 +237,7 @@ public class FileClient {
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (IOException e) {
-	    e.printStackTrace();
+	    // does nothing, will return with error
 	}
 	return false;
     }
@@ -386,13 +381,14 @@ public class FileClient {
 	    sock.joinGroup(group);
 
 	    byte buf[] = new byte[128];
-	    DatagramPacket contactServerResponse = new DatagramPacket(buf,
+	    DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
 		    buf.length);
-	    sock.receive(contactServerResponse);
+	    sock.receive(contactServerBroadcast);
+	    sock.close();
+	    
+	    System.out.println("Got broadcast from contact server!");
 
-	    System.out.println("Got response from contact server!");
-
-	    new FileClient(new String(contactServerResponse.getData()).trim())
+	    new FileClient(new String(contactServerBroadcast.getData()).trim())
 		    .doit();
 
 	} catch (IOException e) {

@@ -25,11 +25,11 @@ public class FileSystem {
 			throws InfoNotFoundException {
 		File f = new File(path);
 		if (f.exists()){
-		    List<String> ls = new ArrayList();
+		    List<String> ls = new ArrayList<String>();
 		    ls.add("Path: "+path);
 		    ls.add("Size: "+f.length());
 		    ls.add("Last Modified: "+new Date(f.lastModified()).toString());
-		    ls.add("É ficheiro:"+f.isFile());
+		    ls.add("Is file:"+f.isFile());
 		    return ls;
 		} else
 			throw new InfoNotFoundException("File not found.");

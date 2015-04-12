@@ -6,10 +6,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
-import javax.jws.WebMethod;
 import javax.jws.WebService;
 
-import fileSystem.FileInfo;
 import fileSystem.InfoNotFoundException;
 
 @WebService
