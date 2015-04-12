@@ -192,17 +192,19 @@ public class FileServerWS implements FileServer {
 		// do nothing - already started with rmiregistry
 	    }
 
-	    InetAddress group = InetAddress.getByName("239.255.255.255");
-	    MulticastSocket sock = new MulticastSocket(5000);
-	    sock.joinGroup(group);
-
-	    byte buf[] = new byte[128];
-	    DatagramPacket contactServerResponse = new DatagramPacket(buf,
-		    buf.length);
-	    sock.receive(contactServerResponse);
-
-	    FileServer fs = new FileServerWS(name, new String(
-		    contactServerResponse.getData()).trim());
+	    FileServer fs;
+	    if(args.length == 1){
+		    InetAddress group = InetAddress.getByName("239.255.255.255");
+		    MulticastSocket sock = new MulticastSocket(5000);
+		    sock.joinGroup(group);
+		    
+		    byte buf[] = new byte[128];
+		    DatagramPacket contactServerResponse = new DatagramPacket(buf, buf.length);
+		    sock.receive(contactServerResponse);
+		    fs = new FileServerRMI(name, new String(contactServerResponse.getData()).trim());
+	    } else {
+	    	fs = new FileServerWS(name, args[1]);
+	    }
 	    System.out.println("FileServer bound in registry");
 	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
 	} catch (Throwable th) {

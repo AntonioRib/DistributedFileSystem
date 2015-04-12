@@ -72,6 +72,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
 	    servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
 
 	servers.get(name).put(host, fs);
+	System.out.println("Adicionei um servidor.");
     }
 
     public ServerInfo getFileServerByURL(String URL) throws RemoteException,
