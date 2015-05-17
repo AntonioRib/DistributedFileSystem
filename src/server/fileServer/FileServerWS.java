@@ -171,7 +171,7 @@ public class FileServerWS implements FileServer {
 	try {
 	    if (args.length < 1) {
 		System.out
-			.println("Use: java server.fileServer.FileServerClass serverName");
+			.println("Use: java server.fileServer.FileServerClass serverName or java server.fileServer.FileServerClass serverName contactServerAdress");
 		return;
 	    }
 

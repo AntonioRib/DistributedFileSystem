@@ -61,7 +61,8 @@ public class FileClient {
 		    "http://fileServer.server/", "FileServerWSService"));
 	    return css.getFileServerWSPort();
 
-	} catch (UnknownHostException | MalformedURLException | NotBoundException e) {
+	} catch (UnknownHostException | MalformedURLException
+		| NotBoundException e) {
 	    e.printStackTrace();
 	}
 
@@ -376,20 +377,27 @@ public class FileClient {
     public static void main(String[] args) {
 	try {
 
-	    InetAddress group = InetAddress.getByName("239.255.255.255");
-	    MulticastSocket sock = new MulticastSocket(5000);
-	    sock.joinGroup(group);
+	    if (args.length == 0) {
 
-	    byte buf[] = new byte[128];
-	    DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
-		    buf.length);
-	    sock.receive(contactServerBroadcast);
-	    sock.close();
-	    
-	    System.out.println("Got broadcast from contact server!");
+		InetAddress group = InetAddress.getByName("239.255.255.255");
+		MulticastSocket sock = new MulticastSocket(5000);
+		sock.joinGroup(group);
 
-	    new FileClient(new String(contactServerBroadcast.getData()).trim())
-		    .doit();
+		byte buf[] = new byte[128];
+		DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
+			buf.length);
+		sock.receive(contactServerBroadcast);
+		sock.close();
+
+		System.out.println("Got broadcast from contact server!");
+
+		new FileClient(
+			new String(contactServerBroadcast.getData()).trim())
+			.doit();
+
+	    } else {
+		new FileClient(args[0]).doit();
+	    }
 
 	} catch (IOException e) {
 	    System.err.println("Error:" + e.getMessage());
