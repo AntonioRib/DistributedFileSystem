@@ -180,7 +180,6 @@ public class ContactServerClass extends UnicastRemoteObject implements
 	    final ContactServer cs = new ContactServerClass("contactServer");
 
 	    new Thread() {
-		@SuppressWarnings("resource")
 		public void run() {
 		    try {
 
