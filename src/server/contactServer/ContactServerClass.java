@@ -13,7 +13,10 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -22,7 +25,7 @@ import server.ServerInfo;
 import server.ServerInfoClass;
 
 public class ContactServerClass extends UnicastRemoteObject implements
-	ContactServer {
+        ContactServer {
 
     private static final long serialVersionUID = 1L;
 
@@ -30,188 +33,201 @@ public class ContactServerClass extends UnicastRemoteObject implements
     private String name;
 
     public ContactServerClass() throws RemoteException, MalformedURLException {
-	this.name = "contactServer";
-	Naming.rebind('/' + name, this);
-	servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfo>>();
+        this.name = "contactServer";
+        Naming.rebind('/' + name, this);
+        servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfo>>();
     }
-    
+
     public ContactServerClass(String name) throws RemoteException,
-	    MalformedURLException {
-	this.name = name;
-	Naming.rebind('/' + name, this);
-	servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfo>>();
+            MalformedURLException {
+        this.name = name;
+        Naming.rebind('/' + name, this);
+        servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfo>>();
     }
 
     public String[] listFileServers() throws RemoteException {
-	updateAndGetServers();
-	if (servers.isEmpty())
-	    return null;
-	return servers.keySet().toArray(new String[servers.size()]);
+        updateAndGetServers();
+        if (servers.isEmpty())
+            return null;
+        return servers.keySet().toArray(new String[servers.size()]);
     }
 
     public String[] getFileServersByName(String name) throws RemoteException,
-	    UnknownHostException {
+            UnknownHostException {
 
-	ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
+        ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
-	if (tmp == null)
-	    return null;
+        if (tmp == null)
+            return null;
 
-	return tmp.keySet().toArray(new String[tmp.size()]);
+        return tmp.keySet().toArray(new String[tmp.size()]);
     }
 
-    public void addFileServer(String host, String name, boolean isRMI) throws RemoteException,
-	    UnknownHostException {
-	ServerInfo fs = new ServerInfoClass("//" + host + "/" + name, isRMI);
-	ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
+    public void addFileServer(String host, String name, boolean isRMI)
+            throws RemoteException, UnknownHostException {
+        ServerInfo fs = new ServerInfoClass("//" + host + "/" + name, isRMI);
+        ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
-	if (tmp == null)
-	    servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
+        if (tmp == null)
+            servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
 
-	servers.get(name).put(host, fs);
-	System.out.println("Added file server.");
+        servers.get(name).put(host, fs);
+        System.out.println("Added file server.");
+    }
+
+
+    public List<ServerInfo> getAllFileServerByName(String name) throws RemoteException {
+        ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
+
+        if (tmp == null)
+            return null;
+
+        ServerInfo[] fss = tmp.values().toArray(new ServerInfo[tmp.size()]);
+        List<ServerInfo> ret =  new ArrayList<ServerInfo>();
+        ret.addAll(Arrays.asList(fss));
+        return ret;
     }
 
     public ServerInfo getFileServerByURL(String URL) throws RemoteException,
-	    UnknownHostException {
-	String[] address = URL.substring(2).split("/");
-	return servers.get(address[1]).get(address[0]);
+            UnknownHostException {
+        String[] address = URL.substring(2).split("/");
+        return servers.get(address[1]).get(address[0]);
     }
 
     public ServerInfo getFileServerByName(String name) throws RemoteException {
-	ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
+        ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
-	if (tmp == null)
-	    return null;
+        if (tmp == null)
+            return null;
 
-	ServerInfo[] fss = tmp.values().toArray(new ServerInfo[tmp.size()]);
-	return fss[new Random().nextInt(fss.length)];
+        ServerInfo[] fss = tmp.values().toArray(new ServerInfo[tmp.size()]);
+        return fss[new Random().nextInt(fss.length)];
     }
 
     public void receiveAliveSignal(String host, String name)
-	    throws RemoteException {
-	ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
+            throws RemoteException {
+        ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
-	if (tmp != null)
-	    tmp.get(host).setLastHeartbeat(System.currentTimeMillis());
-	// System.out.println("Recieving Heartbeat from: "+host+"/"+name);
+        if (tmp != null)
+            tmp.get(host).setLastHeartbeat(System.currentTimeMillis());
+        // System.out.println("Recieving Heartbeat from: "+host+"/"+name);
     }
 
     private ConcurrentMap<String, ServerInfo> updateAndGetServers(String name) {
-	ConcurrentMap<String, ServerInfo> serversName = servers.get(name);
-	if (servers.isEmpty())
-	    return null;
+        ConcurrentMap<String, ServerInfo> serversName = servers.get(name);
+        if (servers.isEmpty())
+            return null;
 
-	if(serversName == null){
-	    return null;
-	}
-	
-	for (ServerInfo server : serversName.values()) {
-	    if (System.currentTimeMillis() - server.getLastHeartbeat() > 5000) {
-		serversName.remove(server.getHost());
-		System.out
-			.println("Server " + server.getAddress() + " did not send alive signal, server removed.");
+        if (serversName == null) {
+            return null;
+        }
 
-	    }
-	}
+        for (ServerInfo server : serversName.values()) {
+            if (System.currentTimeMillis() - server.getLastHeartbeat() > 5000) {
+                serversName.remove(server.getHost());
+                System.out.println("Server " + server.getAddress()
+                        + " did not send alive signal, server removed.");
 
-	servers.put(name, serversName);
+            }
+        }
 
-	if (serversName.size() == 0)
-	    servers.remove(name);
+        servers.put(name, serversName);
 
-	return servers.get(name);
+        if (serversName.size() == 0)
+            servers.remove(name);
+
+        return servers.get(name);
     }
 
     private void updateAndGetServers() {
-	for (String serverName : servers.keySet()) {
-	    updateAndGetServers(serverName);
-	}
+        for (String serverName : servers.keySet()) {
+            updateAndGetServers(serverName);
+        }
     }
 
     public String getName() throws RemoteException {
-	return name;
+        return name;
     }
 
     public String getHost() {
-	return getLocalhost().toString().substring(1);
+        return getLocalhost().toString().substring(1);
     }
 
     private InetAddress getLocalhost() {
-	try {
-	    try {
-		Enumeration<NetworkInterface> e = NetworkInterface
-			.getNetworkInterfaces();
-		while (e.hasMoreElements()) {
-		    NetworkInterface n = e.nextElement();
-		    Enumeration<InetAddress> ee = n.getInetAddresses();
-		    while (ee.hasMoreElements()) {
-			InetAddress i = ee.nextElement();
-			if (i instanceof Inet4Address && !i.isLoopbackAddress())
-			    return i;
-		    }
-		}
-	    } catch (SocketException e) {
-		// do nothing
-	    }
-	    return InetAddress.getLocalHost();
-	} catch (UnknownHostException e) {
-	    return null;
-	}
+        try {
+            try {
+                Enumeration<NetworkInterface> e = NetworkInterface
+                        .getNetworkInterfaces();
+                while (e.hasMoreElements()) {
+                    NetworkInterface n = e.nextElement();
+                    Enumeration<InetAddress> ee = n.getInetAddresses();
+                    while (ee.hasMoreElements()) {
+                        InetAddress i = ee.nextElement();
+                        if (i instanceof Inet4Address && !i.isLoopbackAddress())
+                            return i;
+                    }
+                }
+            } catch (SocketException e) {
+                // do nothing
+            }
+            return InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            return null;
+        }
     }
 
     @SuppressWarnings("deprecation")
     public static void main(String args[]) throws Exception {
-	try {
+        try {
 
-	    System.getProperties().put("java.security.policy", "policy.all");
+            System.getProperties().put("java.security.policy", "policy.all");
 
-	    if (System.getSecurityManager() == null) {
-		System.setSecurityManager(new java.rmi.RMISecurityManager());
-	    }
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new java.rmi.RMISecurityManager());
+            }
 
-	    try { // start rmiregistry
-		LocateRegistry.createRegistry(1099);
-	    } catch (RemoteException e) {
-		// if not start it
-		// do nothing - already started with rmiregistry
-	    }
+            try { // start rmiregistry
+                LocateRegistry.createRegistry(1099);
+            } catch (RemoteException e) {
+                // if not start it
+                // do nothing - already started with rmiregistry
+            }
 
-	    final ContactServer cs = new ContactServerClass("contactServer");
+            final ContactServer cs = new ContactServerClass("contactServer");
 
-	    new Thread() {
-		public void run() {
-		    try {
+            new Thread() {
+                public void run() {
+                    try {
 
-			InetAddress group = InetAddress
-				.getByName("239.255.255.255");
-			
-			// sock is never closed
-			MulticastSocket sock = new MulticastSocket(5000);
-			String broadcast = "//" + cs.getHost() + '/'
-				+ "contactServer";
+                        InetAddress group = InetAddress
+                                .getByName("239.255.255.255");
 
-			for (;;) {
-			    sock.send(new DatagramPacket(broadcast.getBytes(),
-				    broadcast.length(), group, 5000));
-			    System.out.println("Broadcasting!");
-			    Thread.sleep(2500);
-			}
+                        // sock is never closed
+                        MulticastSocket sock = new MulticastSocket(5000);
+                        String broadcast = "//" + cs.getHost() + '/'
+                                + "contactServer";
 
-		    } catch (IOException e) {
-			e.printStackTrace();
-		    } catch (InterruptedException e) {
-			e.printStackTrace();
-		    }
-		}
-	    }.start();
+                        for (;;) {
+                            sock.send(new DatagramPacket(broadcast.getBytes(),
+                                    broadcast.length(), group, 5000));
+                            System.out.println("Broadcasting!");
+                            Thread.sleep(2500);
+                        }
 
-	    System.out.println("ContactServer bound in registry");
-	    System.out.println("//" + cs.getHost() + '/' + cs.getName());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }.start();
 
-	} catch (Throwable th) {
-	    th.printStackTrace();
-	}
+            System.out.println("ContactServer bound in registry");
+            System.out.println("//" + cs.getHost() + '/' + cs.getName());
+
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
 }

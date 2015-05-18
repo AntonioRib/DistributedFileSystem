@@ -100,7 +100,8 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     }
 
     @Override
-    //TODO really, pôr isto como deve de ser. Apesar de funcionar tá feio feio feio.
+    // TODO really, pôr isto como deve de ser. Apesar de funcionar tá feio feio
+    // feio.
     public List<String> dir(String path) throws RemoteException,
             InfoNotFoundException {
         String[] pathDecomposed = path.split("/");

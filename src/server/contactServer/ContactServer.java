@@ -3,6 +3,7 @@ package server.contactServer;
 import java.net.UnknownHostException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
 
 import server.ServerInfo;
 
@@ -21,6 +22,8 @@ public interface ContactServer extends Remote {
 			UnknownHostException;
 
 	ServerInfo getFileServerByName(String name) throws RemoteException;
+	
+	List<ServerInfo> getAllFileServerByName(String name) throws RemoteException;
 
 	void addFileServer(String host, String name, boolean isRMI) throws RemoteException,
 			UnknownHostException;

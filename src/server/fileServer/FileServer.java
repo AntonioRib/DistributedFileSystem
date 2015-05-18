@@ -2,6 +2,8 @@ package server.fileServer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
@@ -33,8 +35,10 @@ public interface FileServer extends Remote {
 	 * 
 	 * @param name
 	 * @return
+	 * @throws NotBoundException 
+	 * @throws MalformedURLException 
 	 */
-	boolean makeDir(String name) throws RemoteException;
+	boolean makeDir(String name) throws RemoteException, MalformedURLException, NotBoundException;
 
 	/**
 	 * Devolve um booleano indicando se eliminou ou nao o ficheiro/directorio

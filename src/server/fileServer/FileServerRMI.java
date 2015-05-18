@@ -70,8 +70,15 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	return FileSystem.getFileInfo(path);
     }
 
-    public boolean makeDir(String name) throws RemoteException {
-	return FileSystem.makeDir(name);
+    public boolean makeDir(String name) throws RemoteException, MalformedURLException, NotBoundException {
+       List<ServerInfo> list = ((ContactServer) Naming.lookup(contactServerURL)).getAllFileServerByName(this.getName());
+        boolean response = FileSystem.makeDir(name);
+        
+        for(ServerInfo sf : list){
+            ((FileServer) Naming.lookup(sf.getHost())).makeDir(name);
+        }
+        
+        return response;
     }
 
     public boolean removeFile(String path, boolean isFile)
