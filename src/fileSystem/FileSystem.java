@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+<<<<<<< HEAD
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,10 +15,25 @@ public class FileSystem {
 		File f = new File(path);
 		if (f.exists())
 			return f.list();
+=======
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
+public class FileSystem {
+	
+
+	public static List<String> dir(String path) throws InfoNotFoundException {
+		File f = new File(path);
+		if (f.exists())
+			return Arrays.asList(f.list());
+>>>>>>> feature/Multicast
 		else
 			throw new InfoNotFoundException("Directory not found :" + path);
 	}
 
+<<<<<<< HEAD
 	public static FileInfo getFileInfo(String path)
 			throws InfoNotFoundException {
 		File f = new File(path);
@@ -25,6 +41,19 @@ public class FileSystem {
 			return new FileInfo(path, f.length(), new Date(f.lastModified()),
 					f.isFile());
 		else
+=======
+	public static List<String> getFileInfo(String path)
+			throws InfoNotFoundException {
+		File f = new File(path);
+		if (f.exists()){
+		    List<String> ls = new ArrayList<String>();
+		    ls.add("Path: "+path);
+		    ls.add("Size: "+f.length());
+		    ls.add("Last Modified: "+new Date(f.lastModified()).toString());
+		    ls.add("Is file:"+f.isFile());
+		    return ls;
+		} else
+>>>>>>> feature/Multicast
 			throw new InfoNotFoundException("File not found.");
 	}
 
