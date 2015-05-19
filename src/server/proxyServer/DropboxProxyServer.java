@@ -37,15 +37,14 @@ import org.scribe.oauth.OAuthService;
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
-import server.fileServer.services.FileServerWSService;
 
 public class DropboxProxyServer extends UnicastRemoteObject implements
         FileServer {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String API_KEY = "dficsyoj7luockq";
-    private static final String API_SECRET = "imw5nme9op0myrt";
+    private static final String API_KEY = "r0alhhnfyxxhapw";
+    private static final String API_SECRET = "x05koov6jm1yg6k";
     private static final String SCOPE = "dropbox";
     private static final String AUTHORIZE_URL = "https://www.dropbox.com/1/oauth/authorize?oauth_token=";
 
@@ -152,8 +151,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         return result;
     }
 
-    public boolean makeDir(String name) throws RemoteException {
-
+    public boolean makeDir(String name, boolean propagate) throws RemoteException, MalformedURLException, NotBoundException {
         OAuthRequest request = new OAuthRequest(Verb.POST,
                 "https://api.dropbox.com/1/fileops/create_folder?root=dropbox&path="
                         + name);
@@ -164,11 +162,21 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
             throw new RuntimeException("Metadata response code:"
                     + response.getCode());
 
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).makeDir(name, false);
+                }
+            }
+        }
+        
         return true;
     }
 
-    public boolean removeFile(String path, boolean isFile)
-            throws RemoteException {
+    public boolean removeFile(String path, boolean isFile, boolean propagate)
+            throws RemoteException, MalformedURLException, NotBoundException {
 
         OAuthRequest request = new OAuthRequest(Verb.GET,
                 "https://api.dropbox.com/1/metadata/dropbox/" + path);
@@ -201,15 +209,25 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
             throw new RuntimeException("Metadata response code:"
                     + response.getCode());
 
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).removeFile(path, isFile, false);
+                }
+            }
+        }
+        
         return true;
     }
 
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-            String toPath) throws IOException {
+            String toPath) throws IOException, NotBoundException {
 
         byte[] in = this.getFile(fromPath);
 
-        return getFileServer(toIsURL, toServer).receiveFile(toPath, in);
+        return getFileServer(toIsURL, toServer).receiveFile(toPath, in, true);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
@@ -229,7 +247,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         return buf;
     }
 
-    public boolean receiveFile(String toPath, byte[] data) throws IOException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException {
         OAuthRequest request = new OAuthRequest(Verb.PUT,
                 "https://api-content.dropbox.com/1/files_put/dropbox/" + toPath);
         request.addHeader("Content-Type", "application/octet-stream");
@@ -241,6 +259,16 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
             throw new RuntimeException("Metadata response code:"
                     + response.getCode());
 
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).receiveFile(toPath, data, false);
+                }
+            }
+        }
+        
         return true;
     }
 
@@ -252,8 +280,6 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
                     .getFileServerByName(server);
             if (fs.isRMI())
                 return (FileServer) Naming.lookup(fs.getAddress());
-            FileServerWSService css = new FileServerWSService();
-            return (FileServer) css.getFileServerWSPort();
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (MalformedURLException e) {

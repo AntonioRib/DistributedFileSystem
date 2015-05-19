@@ -19,7 +19,6 @@ import java.util.List;
 
 import server.ServerInfo;
 import server.contactServer.ContactServer;
-import server.fileServer.services.FileServerWSService;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 
@@ -30,176 +29,215 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     private String name, contactServerURL;
 
     protected FileServerRMI(String name, final String contactServerURL)
-	    throws RemoteException, MalformedURLException, NotBoundException,
-	    UnknownHostException {
-	super();
-	Naming.rebind('/' + name, this);
-	this.contactServerURL = contactServerURL;
-	this.name = name;
-	
-	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName(), true);
+            throws RemoteException, MalformedURLException, NotBoundException,
+            UnknownHostException {
+        super();
+        try {
+        Naming.rebind('/' + name, this);
+        this.contactServerURL = contactServerURL;
+        this.name = name;
 
-	new Thread() {
-	    public void run() {
-		heartbeat();
-	    }
-	}.start();
+        ServerInfo principalServer = ((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+                this.getHost(), this.getName(), true);
+        
+        new Thread() {
+            public void run() {
+                heartbeat();
+            }
+        }.start();
+
+        if(principalServer != null){
+            List<String> dir = ((FileServer) Naming.lookup(principalServer.getAddress())).dir(".");
+            
+        }
+        
+        } catch (InfoNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
     }
 
-    private void heartbeat(){
-	try {
-	    for (;;) {
-		((ContactServer) Naming.lookup(contactServerURL))
-			.receiveAliveSignal(getHost(), getName());
-		Thread.sleep(1000);
-	    }
-	} catch (RemoteException | MalformedURLException
-		| NotBoundException | InterruptedException e) {
-	    e.printStackTrace();
-	}
+    private void heartbeat() {
+        try {
+            for (;;) {
+                ((ContactServer) Naming.lookup(contactServerURL))
+                        .receiveAliveSignal(getHost(), getName());
+                Thread.sleep(1000);
+            }
+        } catch (RemoteException | MalformedURLException | NotBoundException
+                | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
-    
+
     public List<String> dir(String path) throws RemoteException,
-	    InfoNotFoundException {
-	return FileSystem.dir(path);
+            InfoNotFoundException {
+        return FileSystem.dir(path);
     }
 
     public List<String> getFileInfo(String path) throws RemoteException,
-	    InfoNotFoundException {
-	return FileSystem.getFileInfo(path);
+            InfoNotFoundException {
+        return FileSystem.getFileInfo(path);
     }
 
-    public boolean makeDir(String name) throws RemoteException, MalformedURLException, NotBoundException {
-       List<ServerInfo> list = ((ContactServer) Naming.lookup(contactServerURL)).getAllFileServerByName(this.getName());
+    public boolean makeDir(String name, boolean propagate)
+            throws RemoteException, MalformedURLException, NotBoundException {
         boolean response = FileSystem.makeDir(name);
-        
-        for(ServerInfo sf : list){
-            ((FileServer) Naming.lookup(sf.getHost())).makeDir(name);
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).makeDir(name, false);
+                }
+            }
         }
-        
+
         return response;
     }
 
-    public boolean removeFile(String path, boolean isFile)
-	    throws RemoteException {
-	return FileSystem.removeFile(path, isFile);
+    public boolean removeFile(String path, boolean isFile, boolean propagate)
+            throws RemoteException, MalformedURLException, NotBoundException {
+        boolean response = FileSystem.removeFile(path, isFile);
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).removeFile(name, isFile, false);
+                }
+            }
+        }
+
+        return response;
     }
 
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-	    String toPath) throws IOException {
+            String toPath) throws IOException, NotBoundException {
 
-	byte[] in = FileSystem.getData(fromPath);
+        byte[] in = FileSystem.getData(fromPath);
 
-	return getFileServer(toIsURL, toServer).receiveFile(toPath, in);
+        return getFileServer(toIsURL, toServer).receiveFile(toPath, in, true);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
-	return FileSystem.getData(fromPath);
+        return FileSystem.getData(fromPath);
     }
 
-    public boolean receiveFile(String toPath, byte[] data) throws IOException {
-	return FileSystem.createFile(toPath, data);
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException {
+        boolean response = FileSystem.createFile(toPath, data);
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this.getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())){
+                    getFileServer(true, sf.getAddress()).receiveFile(toPath, data, false);
+                }
+            }
+        }
+
+        return response;
     }
 
     private FileServer getFileServer(boolean isURL, String server)
-	    throws RemoteException {
-	try {
-	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
-	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
-		    .getFileServerByName(server);
-	    if(fs.isRMI())
-		return (FileServer) Naming.lookup(fs.getAddress());
-	    FileServerWSService css = new FileServerWSService();
-	    return (FileServer) css.getFileServerWSPort();
-	} catch (UnknownHostException e) {
-	    e.printStackTrace();
-	} catch (MalformedURLException e) {
-	    e.printStackTrace();
-	} catch (NotBoundException e) {
-	    e.printStackTrace();
-	}
+            throws RemoteException {
+        try {
+            ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
+            ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
+                    .getFileServerByName(server);
+            if (fs.isRMI())
+                return (FileServer) Naming.lookup(fs.getAddress());
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (NotBoundException e) {
+            e.printStackTrace();
+        }
 
-	return null;
+        return null;
     }
-    
+
     public String getName() {
-	return name;
+        return name;
     }
 
     public String getHost() {
-	return getLocalhost().toString().substring(1);
+        return getLocalhost().toString().substring(1);
     }
 
     private InetAddress getLocalhost() {
-	try {
-	    try {
-		Enumeration<NetworkInterface> e = NetworkInterface
-			.getNetworkInterfaces();
-		while (e.hasMoreElements()) {
-		    NetworkInterface n = e.nextElement();
-		    Enumeration<InetAddress> ee = n.getInetAddresses();
-		    while (ee.hasMoreElements()) {
-			InetAddress i = ee.nextElement();
-			if (i instanceof Inet4Address && !i.isLoopbackAddress())
-			    return i;
-		    }
-		}
-	    } catch (SocketException e) {
-		// do nothing
-	    }
-	    return InetAddress.getLocalHost();
-	} catch (UnknownHostException e) {
-	    return null;
-	}
+        try {
+            try {
+                Enumeration<NetworkInterface> e = NetworkInterface
+                        .getNetworkInterfaces();
+                while (e.hasMoreElements()) {
+                    NetworkInterface n = e.nextElement();
+                    Enumeration<InetAddress> ee = n.getInetAddresses();
+                    while (ee.hasMoreElements()) {
+                        InetAddress i = ee.nextElement();
+                        if (i instanceof Inet4Address && !i.isLoopbackAddress())
+                            return i;
+                    }
+                }
+            } catch (SocketException e) {
+                // do nothing
+            }
+            return InetAddress.getLocalHost();
+        } catch (UnknownHostException e) {
+            return null;
+        }
     }
 
     @SuppressWarnings("deprecation")
     public static void main(String args[]) throws Exception {
-	try {
-	    if (args.length < 1) {
-		System.out
-			.println("Use: java server.fileServer.FileServerClass serverName or java server.fileServer.FileServerClass serverName contactServerAdress");
-		return;
-	    }
+        try {
+            if (args.length < 1) {
+                System.out
+                        .println("Use: java server.fileServer.FileServerClass serverName or java server.fileServer.FileServerClass serverName contactServerAdress");
+                return;
+            }
 
-	    String name = args[0];
-	    
-	    System.getProperties().put("java.security.policy", "policy.all");
+            String name = args[0];
 
-	    if (System.getSecurityManager() == null) {
-		System.setSecurityManager(new java.rmi.RMISecurityManager());
-	    }
+            System.getProperties().put("java.security.policy", "policy.all");
 
-	    try { // start rmiregistry
-		LocateRegistry.createRegistry(1099);
-	    } catch (RemoteException e) {
-		// if not start it
-		// do nothing - already started with rmiregistry
-	    }
-	    
-	    FileServer fs;
-	    if(args.length == 1){
-		    InetAddress group = InetAddress.getByName("239.255.255.255");
-		    MulticastSocket sock = new MulticastSocket(5000);
-		    sock.joinGroup(group);
-		    
-		    byte buf[] = new byte[128];
-		    DatagramPacket contactServerBroadcast = new DatagramPacket(buf, buf.length);
-		    sock.receive(contactServerBroadcast);
-		    sock.close();
-		    
-		    System.out.println("Got broadcast from contact server!");
-		    
-		    fs = new FileServerRMI(name, new String(contactServerBroadcast.getData()).trim());
-	    } else {
-	    	fs = new FileServerRMI(name, args[1]);
-	    }
-	    System.out.println("FileServer bound in registry");
-	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
-	} catch (Throwable th) {
-	    th.printStackTrace();
-	}
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new java.rmi.RMISecurityManager());
+            }
+
+            try { // start rmiregistry
+                LocateRegistry.createRegistry(1099);
+            } catch (RemoteException e) {
+                // if not start it
+                // do nothing - already started with rmiregistry
+            }
+
+            FileServer fs;
+            if (args.length == 1) {
+                InetAddress group = InetAddress.getByName("239.255.255.255");
+                MulticastSocket sock = new MulticastSocket(5000);
+                sock.joinGroup(group);
+
+                byte buf[] = new byte[128];
+                DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
+                        buf.length);
+                sock.receive(contactServerBroadcast);
+                sock.close();
+
+                System.out.println("Got broadcast from contact server!");
+
+                fs = new FileServerRMI(name, new String(
+                        contactServerBroadcast.getData()).trim());
+            } else {
+                fs = new FileServerRMI(name, args[1]);
+            }
+            System.out.println("FileServer bound in registry");
+            System.out.println("//" + fs.getHost() + '/' + fs.getName());
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
 }

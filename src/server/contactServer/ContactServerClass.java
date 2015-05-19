@@ -63,20 +63,26 @@ public class ContactServerClass extends UnicastRemoteObject implements
         return tmp.keySet().toArray(new String[tmp.size()]);
     }
 
-    public void addFileServer(String host, String name, boolean isRMI)
+    public ServerInfo addFileServer(String host, String name, boolean isRMI)
             throws RemoteException, UnknownHostException {
         ServerInfo fs = new ServerInfoClass("//" + host + "/" + name, isRMI);
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
-
+        ServerInfo principalServer = null;
+        
         if (tmp == null)
             servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
 
+        if(servers.get(name).size() > 0)
+            principalServer = servers.get(name).values().iterator().next();
+        
         servers.get(name).put(host, fs);
         System.out.println("Added file server.");
+        
+        return principalServer;
     }
 
 
-    public List<ServerInfo> getAllFileServerByName(String name) throws RemoteException {
+    public List<ServerInfo> getAllFileServersByName(String name) throws RemoteException {
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
         if (tmp == null)
@@ -203,6 +209,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
                                 .getByName("239.255.255.255");
 
                         // sock is never closed
+                        @SuppressWarnings("resource")
                         MulticastSocket sock = new MulticastSocket(5000);
                         String broadcast = "//" + cs.getHost() + '/'
                                 + "contactServer";

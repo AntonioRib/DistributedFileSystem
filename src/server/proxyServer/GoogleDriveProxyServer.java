@@ -9,7 +9,6 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.file.Path;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -131,7 +130,6 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
             }
 
             JSONArray items = (JSONArray) res.get(JSON_FILE_CONTENT);
-            List<String> result = new LinkedList<String>();
             JSONObject file = (JSONObject) items.iterator().next();
             fileID = ((String) file.get(JSON_FILE_ID));
         }
@@ -192,13 +190,13 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     }
 
     @Override
-    public boolean makeDir(String name) throws RemoteException {
+    public boolean makeDir(String name, boolean propagate) throws RemoteException {
         // TODO Auto-generated method stub
         return false;
     }
 
     @Override
-    public boolean removeFile(String name, boolean isFile)
+    public boolean removeFile(String name, boolean isFile, boolean propagate)
             throws RemoteException {
         // TODO Auto-generated method stub
         return false;
@@ -218,7 +216,7 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     }
 
     @Override
-    public boolean receiveFile(String toPath, byte[] data) throws IOException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException {
         // TODO Auto-generated method stub
         return false;
     }

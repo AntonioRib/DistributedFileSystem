@@ -8,26 +8,27 @@ import java.util.List;
 import server.ServerInfo;
 
 public interface ContactServer extends Remote {
-    
-    	String getName() throws RemoteException;
-    	
-    	String getHost() throws RemoteException; 
 
-	String[] listFileServers() throws RemoteException;
+    String getName() throws RemoteException;
 
-	String[] getFileServersByName(String name) throws RemoteException,
-			UnknownHostException;
+    String getHost() throws RemoteException;
 
-	ServerInfo getFileServerByURL(String URL) throws RemoteException,
-			UnknownHostException;
+    String[] listFileServers() throws RemoteException;
 
-	ServerInfo getFileServerByName(String name) throws RemoteException;
-	
-	List<ServerInfo> getAllFileServerByName(String name) throws RemoteException;
+    String[] getFileServersByName(String name) throws RemoteException,
+            UnknownHostException;
 
-	void addFileServer(String host, String name, boolean isRMI) throws RemoteException,
-			UnknownHostException;
+    ServerInfo getFileServerByURL(String URL) throws RemoteException,
+            UnknownHostException;
 
-	void receiveAliveSignal(String host, String name) throws RemoteException;
+    ServerInfo getFileServerByName(String name) throws RemoteException;
+
+    List<ServerInfo> getAllFileServersByName(String name)
+            throws RemoteException;
+
+    ServerInfo addFileServer(String host, String name, boolean isRMI)
+            throws RemoteException, UnknownHostException;
+
+    void receiveAliveSignal(String host, String name) throws RemoteException;
 
 }

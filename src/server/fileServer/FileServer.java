@@ -14,68 +14,73 @@ import fileSystem.InfoNotFoundException;
 
 @WebService
 public interface FileServer extends Remote {
-    
-    	String getName() throws RemoteException;
-    	
-    	String getHost() throws RemoteException;
 
-	/**
-	 * Lista nome de ficheiros num dado directorio
-	 */
-	List<String> dir(String path) throws RemoteException, InfoNotFoundException;
+    String getName() throws RemoteException;
 
-	/**
-	 * Devolve informacao sobre ficheiro.
-	 */
-	List<String> getFileInfo(String path) throws RemoteException,
-			InfoNotFoundException;
+    String getHost() throws RemoteException;
 
-	/**
-	 * Devolve um booleano indicando se criou ou nao o directorio
-	 * 
-	 * @param name
-	 * @return
-	 * @throws NotBoundException 
-	 * @throws MalformedURLException 
-	 */
-	boolean makeDir(String name) throws RemoteException, MalformedURLException, NotBoundException;
+    /**
+     * Lista nome de ficheiros num dado directorio
+     */
+    List<String> dir(String path) throws RemoteException, InfoNotFoundException;
 
-	/**
-	 * Devolve um booleano indicando se eliminou ou nao o ficheiro/directorio
-	 * 
-	 * @param name
-	 * @return
-	 * @throws RemoteException
-	 */
-	boolean removeFile(String name, boolean isFile) throws RemoteException;
+    /**
+     * Devolve informacao sobre ficheiro.
+     */
+    List<String> getFileInfo(String path) throws RemoteException,
+            InfoNotFoundException;
 
-	/**
-	 * 
-	 * @param fromPath
-	 * @param toServer
-	 * @param toIsURL
-	 * @param toPath
-	 * @return
-	 * @throws FileNotFoundException
-	 */
-	boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-			String toPath) throws IOException;
+    /**
+     * Devolve um booleano indicando se criou ou nao o directorio
+     * 
+     * @param name
+     * @return
+     * @throws NotBoundException
+     * @throws MalformedURLException
+     */
+    boolean makeDir(String name, boolean propagate) throws RemoteException, MalformedURLException,
+            NotBoundException;
 
-	/**
-	 * 
-	 * @param toPath
-	 * @param file
-	 * @return
-	 * @throws IOException 
-	 */
-	byte[] getFile(String toPath) throws IOException;
-	
-	/**
-	 * 
-	 * @param toPath
-	 * @param file
-	 * @return
-	 * @throws IOException 
-	 */
-	boolean receiveFile(String toPath, byte[] data) throws IOException;
+    /**
+     * Devolve um booleano indicando se eliminou ou nao o ficheiro/directorio
+     * 
+     * @param name
+     * @return
+     * @throws RemoteException
+     * @throws NotBoundException 
+     * @throws MalformedURLException 
+     */
+    boolean removeFile(String name, boolean isFile, boolean propagate) throws RemoteException, MalformedURLException, NotBoundException;
+
+    /**
+     * 
+     * @param fromPath
+     * @param toServer
+     * @param toIsURL
+     * @param toPath
+     * @return
+     * @throws NotBoundException 
+     * @throws FileNotFoundException
+     */
+    boolean sendFile(String fromPath, String toServer, boolean toIsURL,
+            String toPath) throws IOException, NotBoundException;
+
+    /**
+     * 
+     * @param toPath
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    byte[] getFile(String toPath) throws IOException;
+
+    /**
+     * 
+     * @param toPath
+     * @param file
+     * @return
+     * @throws IOException
+     * @throws NotBoundException 
+     */
+    boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException;
 }

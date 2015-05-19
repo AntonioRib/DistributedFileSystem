@@ -7,19 +7,15 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.MulticastSocket;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.List;
 
-import javax.xml.namespace.QName;
-
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
-import server.fileServer.services.FileServerWSService;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 
@@ -55,11 +51,6 @@ public class FileClient {
 
 	    if (fs.isRMI())
 		return (FileServer) Naming.lookup(fs.getAddress());
-
-	    FileServerWSService css = new FileServerWSService(new URL("http://"
-		    + fs.getHost() + "/" + fs.getName()), new QName(
-		    "http://fileServer.server/", "FileServerWSService"));
-	    return css.getFileServerWSPort();
 
 	} catch (UnknownHostException | MalformedURLException
 		| NotBoundException e) {
@@ -127,10 +118,16 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.makeDir(dir);
-	    return getFileServer(isURL, server).makeDir(dir);
+	    return getFileServer(isURL, server).makeDir(dir, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
-	}
+	} catch (MalformedURLException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    } catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
 	return false;
     }
 
@@ -149,10 +146,16 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.removeFile(dir, false);
-	    return getFileServer(isURL, server).removeFile(dir, false);
+	    return getFileServer(isURL, server).removeFile(dir, false, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
-	}
+	} catch (MalformedURLException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    } catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
 	return false;
     }
 
@@ -171,10 +174,16 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.removeFile(path, true);
-	    return getFileServer(isURL, server).removeFile(path, true);
+	    return getFileServer(isURL, server).removeFile(path, true, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
-	}
+	} catch (MalformedURLException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    } catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
 	return false;
     }
 
@@ -224,7 +233,7 @@ public class FileClient {
 	    if (fromServer == null) {
 		byte[] localData = FileSystem.getData(fromPath);
 		return getFileServer(toIsURL, toServer).receiveFile(toPath,
-			localData);
+			localData, true);
 	    }
 
 	    if (toServer == null) {
@@ -239,7 +248,10 @@ public class FileClient {
 	    e.printStackTrace();
 	} catch (IOException e) {
 	    // does nothing, will return with error
-	}
+	} catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
 	return false;
     }
 
