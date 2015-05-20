@@ -34,6 +34,7 @@ import org.scribe.oauth.OAuthService;
 
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
+import server.fileServer.WriteNotAllowedException;
 import fileSystem.InfoNotFoundException;
 
 public class GoogleDriveProxyServer extends UnicastRemoteObject implements
@@ -60,6 +61,7 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     private static final String SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 
     private String name, contactServerURL;
+    private boolean isPrimary;
     private static OAuthService service;
     private static Token requestToken, accessToken;
 
@@ -69,7 +71,8 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
         super();
         Naming.rebind('/' + name, this);
         this.contactServerURL = contactServerURL;
-        this.name = name;
+        this.name = name;       
+        this.isPrimary = false;
 
         service = new ServiceBuilder().provider(Google2Api.class)
                 .apiKey(API_KEY).apiSecret(API_SECRET).callback(URL_CALLBACK)
@@ -190,15 +193,23 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     }
 
     @Override
-    public boolean makeDir(String name, boolean propagate) throws RemoteException {
-        // TODO Auto-generated method stub
+    public boolean makeDir(String name, boolean propagate) throws RemoteException, WriteNotAllowedException {
+
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         return false;
     }
 
     @Override
     public boolean removeFile(String name, boolean isFile, boolean propagate)
-            throws RemoteException {
-        // TODO Auto-generated method stub
+            throws RemoteException, WriteNotAllowedException {
+
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         return false;
     }
 
@@ -216,9 +227,21 @@ public class GoogleDriveProxyServer extends UnicastRemoteObject implements
     }
 
     @Override
-    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException {
-        // TODO Auto-generated method stub
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         return false;
+    }
+
+    public boolean isPrimary() {
+        return isPrimary;
+    }
+
+    public void setPrimary(boolean isPrimary) {
+        this.isPrimary = isPrimary;
     }
 
     public String getName() {

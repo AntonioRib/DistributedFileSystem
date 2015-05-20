@@ -37,6 +37,7 @@ import org.scribe.oauth.OAuthService;
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
+import server.fileServer.WriteNotAllowedException;
 
 public class DropboxProxyServer extends UnicastRemoteObject implements
         FileServer {
@@ -49,6 +50,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
     private static final String AUTHORIZE_URL = "https://www.dropbox.com/1/oauth/authorize?oauth_token=";
 
     private String name, contactServerURL;
+    private boolean isPrimary;
     private static OAuthService service;
     private static Token requestToken, accessToken;
 
@@ -59,7 +61,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         Naming.rebind('/' + name, this);
         this.contactServerURL = contactServerURL;
         this.name = name;
-
+        this.isPrimary = false;
+        
         service = new ServiceBuilder().provider(DropBoxApi.class)
                 .apiKey(API_KEY).apiSecret(API_SECRET).scope(SCOPE).build();
 
@@ -151,7 +154,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         return result;
     }
 
-    public boolean makeDir(String name, boolean propagate) throws RemoteException, MalformedURLException, NotBoundException {
+    public boolean makeDir(String name, boolean propagate) throws RemoteException, MalformedURLException, NotBoundException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         OAuthRequest request = new OAuthRequest(Verb.POST,
                 "https://api.dropbox.com/1/fileops/create_folder?root=dropbox&path="
                         + name);
@@ -176,8 +184,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
     }
 
     public boolean removeFile(String path, boolean isFile, boolean propagate)
-            throws RemoteException, MalformedURLException, NotBoundException {
+            throws RemoteException, MalformedURLException, NotBoundException, WriteNotAllowedException {
 
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         OAuthRequest request = new OAuthRequest(Verb.GET,
                 "https://api.dropbox.com/1/metadata/dropbox/" + path);
         service.signRequest(accessToken, request);
@@ -223,7 +235,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
     }
 
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-            String toPath) throws IOException, NotBoundException {
+            String toPath) throws IOException, NotBoundException, WriteNotAllowedException {
 
         byte[] in = this.getFile(fromPath);
 
@@ -247,7 +259,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         return buf;
     }
 
-    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         OAuthRequest request = new OAuthRequest(Verb.PUT,
                 "https://api-content.dropbox.com/1/files_put/dropbox/" + toPath);
         request.addHeader("Content-Type", "application/octet-stream");
@@ -289,6 +306,14 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
         }
 
         return null;
+    }
+
+    public boolean isPrimary() {
+        return isPrimary;
+    }
+
+    public void setPrimary(boolean isPrimary) {
+        this.isPrimary = isPrimary;
     }
 
     public String getName() {

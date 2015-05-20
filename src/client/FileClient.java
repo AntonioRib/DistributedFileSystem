@@ -16,6 +16,7 @@ import java.util.List;
 import server.ServerInfo;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
+import server.fileServer.WriteNotAllowedException;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
 
@@ -127,6 +128,9 @@ public class FileClient {
     } catch (NotBoundException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
+    } catch (WriteNotAllowedException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
     }
 	return false;
     }
@@ -155,6 +159,9 @@ public class FileClient {
     } catch (NotBoundException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
+    } catch (WriteNotAllowedException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
     }
 	return false;
     }
@@ -181,6 +188,9 @@ public class FileClient {
         // TODO Auto-generated catch block
         e.printStackTrace();
     } catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    } catch (WriteNotAllowedException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
     }
@@ -249,6 +259,9 @@ public class FileClient {
 	} catch (IOException e) {
 	    // does nothing, will return with error
 	} catch (NotBoundException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    } catch (WriteNotAllowedException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
     }

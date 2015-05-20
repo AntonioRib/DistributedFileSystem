@@ -27,17 +27,18 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     private static final long serialVersionUID = 1L;
 
     private String name, contactServerURL;
+    private boolean isPrimary;
 
     protected FileServerRMI(String name, final String contactServerURL)
             throws RemoteException, MalformedURLException, NotBoundException,
             UnknownHostException {
         super();
-        try {
         Naming.rebind('/' + name, this);
         this.contactServerURL = contactServerURL;
         this.name = name;
+        this.isPrimary = false;
 
-        ServerInfo principalServer = ((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+        ((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
                 this.getHost(), this.getName(), true);
         
         new Thread() {
@@ -45,17 +46,6 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
                 heartbeat();
             }
         }.start();
-
-        if(principalServer != null){
-            List<String> dir = ((FileServer) Naming.lookup(principalServer.getAddress())).dir(".");
-            
-        }
-        
-        } catch (InfoNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
     }
 
     private void heartbeat() {
@@ -63,6 +53,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
             for (;;) {
                 ((ContactServer) Naming.lookup(contactServerURL))
                         .receiveAliveSignal(getHost(), getName());
+                System.out.println("Mandei");
                 Thread.sleep(1000);
             }
         } catch (RemoteException | MalformedURLException | NotBoundException
@@ -82,7 +73,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     }
 
     public boolean makeDir(String name, boolean propagate)
-            throws RemoteException, MalformedURLException, NotBoundException {
+            throws RemoteException, MalformedURLException, NotBoundException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         boolean response = FileSystem.makeDir(name);
         if (propagate) {
             List<ServerInfo> serversList = ((ContactServer) Naming
@@ -98,7 +94,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     }
 
     public boolean removeFile(String path, boolean isFile, boolean propagate)
-            throws RemoteException, MalformedURLException, NotBoundException {
+            throws RemoteException, MalformedURLException, NotBoundException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         boolean response = FileSystem.removeFile(path, isFile);
         if (propagate) {
             List<ServerInfo> serversList = ((ContactServer) Naming
@@ -114,18 +115,23 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     }
 
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-            String toPath) throws IOException, NotBoundException {
-
+            String toPath) throws IOException, NotBoundException, WriteNotAllowedException {
+        
         byte[] in = FileSystem.getData(fromPath);
 
-        return getFileServer(toIsURL, toServer).receiveFile(toPath, in, true);
+        return getFileServer(toIsURL, toServer).receiveFile(toPath, in, false);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
         return FileSystem.getData(fromPath);
     }
 
-    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException, WriteNotAllowedException {
+        
+        if(!isPrimary && propagate){
+            throw new WriteNotAllowedException();
+        }
+        
         boolean response = FileSystem.createFile(toPath, data);
         if (propagate) {
             List<ServerInfo> serversList = ((ContactServer) Naming
@@ -157,6 +163,14 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         }
 
         return null;
+    }
+
+    public boolean isPrimary() throws RemoteException{
+        return isPrimary;
+    }
+
+    public void setPrimary(boolean isPrimary) throws RemoteException {
+        this.isPrimary = isPrimary;
     }
 
     public String getName() {

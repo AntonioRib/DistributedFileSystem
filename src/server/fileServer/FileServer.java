@@ -37,9 +37,10 @@ public interface FileServer extends Remote {
      * @return
      * @throws NotBoundException
      * @throws MalformedURLException
+     * @throws WriteNotAllowedException
      */
-    boolean makeDir(String name, boolean propagate) throws RemoteException, MalformedURLException,
-            NotBoundException;
+    boolean makeDir(String name, boolean propagate) throws RemoteException,
+            MalformedURLException, NotBoundException, WriteNotAllowedException;
 
     /**
      * Devolve um booleano indicando se eliminou ou nao o ficheiro/directorio
@@ -47,10 +48,13 @@ public interface FileServer extends Remote {
      * @param name
      * @return
      * @throws RemoteException
-     * @throws NotBoundException 
-     * @throws MalformedURLException 
+     * @throws NotBoundException
+     * @throws MalformedURLException
+     * @throws WriteNotAllowedException
      */
-    boolean removeFile(String name, boolean isFile, boolean propagate) throws RemoteException, MalformedURLException, NotBoundException;
+    boolean removeFile(String name, boolean isFile, boolean propagate)
+            throws RemoteException, MalformedURLException, NotBoundException,
+            WriteNotAllowedException;
 
     /**
      * 
@@ -59,11 +63,13 @@ public interface FileServer extends Remote {
      * @param toIsURL
      * @param toPath
      * @return
-     * @throws NotBoundException 
+     * @throws NotBoundException
+     * @throws WriteNotAllowedException
      * @throws FileNotFoundException
      */
     boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-            String toPath) throws IOException, NotBoundException;
+            String toPath) throws IOException, NotBoundException,
+            WriteNotAllowedException;
 
     /**
      * 
@@ -80,7 +86,13 @@ public interface FileServer extends Remote {
      * @param file
      * @return
      * @throws IOException
-     * @throws NotBoundException 
+     * @throws NotBoundException
+     * @throws WriteNotAllowedException
      */
-    boolean receiveFile(String toPath, byte[] data, boolean propagate) throws IOException, NotBoundException;
+    boolean receiveFile(String toPath, byte[] data, boolean propagate)
+            throws IOException, NotBoundException, WriteNotAllowedException;
+
+    boolean isPrimary() throws RemoteException;
+
+    void setPrimary(boolean isPrimary) throws RemoteException;
 }

@@ -10,6 +10,7 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.rmi.Naming;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
@@ -23,6 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import server.ServerInfo;
 import server.ServerInfoClass;
+import server.fileServer.FileServer;
 
 public class ContactServerClass extends UnicastRemoteObject implements
         ContactServer {
@@ -45,7 +47,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
         servers = new ConcurrentHashMap<String, ConcurrentMap<String, ServerInfo>>();
     }
 
-    public String[] listFileServers() throws RemoteException {
+    public String[] listFileServers() throws RemoteException, MalformedURLException, NotBoundException {
         updateAndGetServers();
         if (servers.isEmpty())
             return null;
@@ -53,7 +55,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
     }
 
     public String[] getFileServersByName(String name) throws RemoteException,
-            UnknownHostException {
+            UnknownHostException, MalformedURLException, NotBoundException {
 
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
@@ -63,26 +65,23 @@ public class ContactServerClass extends UnicastRemoteObject implements
         return tmp.keySet().toArray(new String[tmp.size()]);
     }
 
-    public ServerInfo addFileServer(String host, String name, boolean isRMI)
-            throws RemoteException, UnknownHostException {
+    public void addFileServer(String host, String name, boolean isRMI)
+            throws RemoteException, UnknownHostException, MalformedURLException, NotBoundException {
         ServerInfo fs = new ServerInfoClass("//" + host + "/" + name, isRMI);
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
-        ServerInfo principalServer = null;
-        
         if (tmp == null)
             servers.put(name, new ConcurrentHashMap<String, ServerInfo>());
 
-        if(servers.get(name).size() > 0)
-            principalServer = servers.get(name).values().iterator().next();
+        if(servers.get(name).isEmpty()){
+            promoteServer(host, name);
+        }
         
         servers.get(name).put(host, fs);
-        System.out.println("Added file server.");
-        
-        return principalServer;
+        System.out.println("Added file server.");        
     }
 
 
-    public List<ServerInfo> getAllFileServersByName(String name) throws RemoteException {
+    public List<ServerInfo> getAllFileServersByName(String name) throws RemoteException, MalformedURLException, NotBoundException {
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
         if (tmp == null)
@@ -100,7 +99,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
         return servers.get(address[1]).get(address[0]);
     }
 
-    public ServerInfo getFileServerByName(String name) throws RemoteException {
+    public ServerInfo getFileServerByName(String name) throws RemoteException, MalformedURLException, NotBoundException {
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
         if (tmp == null)
@@ -111,7 +110,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
     }
 
     public void receiveAliveSignal(String host, String name)
-            throws RemoteException {
+            throws RemoteException, MalformedURLException, NotBoundException {
         ConcurrentMap<String, ServerInfo> tmp = updateAndGetServers(name);
 
         if (tmp != null)
@@ -119,7 +118,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
         // System.out.println("Recieving Heartbeat from: "+host+"/"+name);
     }
 
-    private ConcurrentMap<String, ServerInfo> updateAndGetServers(String name) {
+    private ConcurrentMap<String, ServerInfo> updateAndGetServers(String name) throws MalformedURLException, RemoteException, NotBoundException {
         ConcurrentMap<String, ServerInfo> serversName = servers.get(name);
         if (servers.isEmpty())
             return null;
@@ -127,10 +126,19 @@ public class ContactServerClass extends UnicastRemoteObject implements
         if (serversName == null) {
             return null;
         }
-
+        boolean i = false;
         for (ServerInfo server : serversName.values()) {
             if (System.currentTimeMillis() - server.getLastHeartbeat() > 5000) {
                 serversName.remove(server.getHost());
+                
+                if(i){
+                    promoteServer(server.getHost(), server.getName());
+                    i = false;
+                }
+                
+                if(!serversName.isEmpty()){
+                    i = true;
+                }
                 System.out.println("Server " + server.getAddress()
                         + " did not send alive signal, server removed.");
 
@@ -145,10 +153,16 @@ public class ContactServerClass extends UnicastRemoteObject implements
         return servers.get(name);
     }
 
-    private void updateAndGetServers() {
+    private void updateAndGetServers() throws MalformedURLException, RemoteException, NotBoundException {
         for (String serverName : servers.keySet()) {
             updateAndGetServers(serverName);
         }
+    }
+    
+    private void promoteServer(String host, String name) throws MalformedURLException, RemoteException, NotBoundException{
+       FileServer fs = ((FileServer) Naming.lookup("//" + host + '/' + name));
+       fs.setPrimary(true);
+       System.out.println("//" + host + '/' + name + " - " + "Promovido a primário");
     }
 
     public String getName() throws RemoteException {
