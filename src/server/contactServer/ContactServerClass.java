@@ -17,6 +17,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,24 +127,23 @@ public class ContactServerClass extends UnicastRemoteObject implements
         if (serversName == null) {
             return null;
         }
-        boolean i = false;
-        for (ServerInfo server : serversName.values()) {
+        Iterator<ServerInfo> serverInfoIt = serversName.values().iterator();
+        int i = 0;
+        while(serverInfoIt.hasNext()){
+            ServerInfo server = serverInfoIt.next();
             if (System.currentTimeMillis() - server.getLastHeartbeat() > 5000) {
                 serversName.remove(server.getHost());
-                
-                if(i){
-                    promoteServer(server.getHost(), server.getName());
-                    i = false;
-                }
-                
-                if(!serversName.isEmpty()){
-                    i = true;
-                }
                 System.out.println("Server " + server.getAddress()
                         + " did not send alive signal, server removed.");
-
+                if(i == 0 && !serversName.isEmpty()){
+                    ServerInfo nextServer = serverInfoIt.next();
+                    promoteServer(nextServer.getHost(), nextServer.getName());
+                    i++;
+                }
             }
+            i++;
         }
+        
 
         servers.put(name, serversName);
 
