@@ -50,34 +50,38 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
 	
-	List<ServerInfo> brothers = ((ContactServer) Naming.lookup(contactServerURL)).getAllFileServersByName("TESTE AJAVARDADO");
+	List<ServerInfo> brothers = ((ContactServer) Naming.lookup(contactServerURL)).getAllFileServersByName(name);
 	
-	for (ServerInfo si: brothers) {
-	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-	    if (curr.isPrimary()) {
-		this.receiveFile(".sync", curr.getFile(".sync"), false);
-		
-		JSONParser parser = new JSONParser();
-		
-		try {
-		    Object obj = parser.parse(new FileReader(".sync"));
-		    JSONObject meta = (JSONObject) obj;
-		    
-		    // ....
-		    
-		    JSONArray files = (JSONArray) meta.get("files");
-		    for (int i = 0; i < files.size(); i++) {
-			JSONObject file = (JSONObject) files.get(i);
-			String fileName = (String) file.get("name");
-			this.receiveFile(fileName, curr.getFile(fileName), false);
-		    }
-		    
-		} catch (ParseException e) {
-		    e.printStackTrace();
-		}
-		
-	    }
-	}
+    	for (ServerInfo si: brothers) {
+    	    
+    	    if (!si.getHost().equals(this.getHost())) {
+    	    
+        	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
+        	    if (curr.isPrimary()) {
+        		this.receiveFile(".sync", curr.getFile(".sync"), false);
+        		
+        		JSONParser parser = new JSONParser();
+        		
+        		try {
+        		    Object obj = parser.parse(new FileReader(".sync"));
+        		    JSONObject meta = (JSONObject) obj;
+        		    
+        		    // ....
+        		    
+        		    JSONArray files = (JSONArray) meta.get("files");
+        		    for (int i = 0; i < files.size(); i++) {
+        			JSONObject file = (JSONObject) files.get(i);
+        			String fileName = (String) file.get("name");
+        			this.receiveFile(fileName, curr.getFile(fileName), false);
+        		    }
+        		    
+        		} catch (ParseException e) {
+        		    e.printStackTrace();
+        		}
+        		
+        	    }
+    	    }
+    	}
 	
 	this.genMetadata();
 
