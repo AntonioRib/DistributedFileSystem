@@ -39,51 +39,18 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     private boolean isPrimary;
 
     protected FileServerRMI(String name, final String contactServerURL)
-	    throws NotBoundException, InfoNotFoundException, IOException, WriteNotAllowedException {
+	    throws NotBoundException, InfoNotFoundException, IOException,
+	    WriteNotAllowedException {
 	super();
 	Naming.rebind('/' + name, this);
 	this.contactServerURL = contactServerURL;
 	this.name = name;
 	this.isPrimary = false;
-	
-	
+
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
-	
-	List<ServerInfo> brothers = ((ContactServer) Naming.lookup(contactServerURL)).getAllFileServersByName(name);
-	
-    	for (ServerInfo si: brothers) {
-    	    
-    	    if (!si.getHost().equals(this.getHost())) {
-    	    
-        	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-        	    if (curr.isPrimary()) {
-        		this.receiveFile(".sync", curr.getFile(".sync"), false);
-        		
-        		JSONParser parser = new JSONParser();
-        		
-        		try {
-        		    Object obj = parser.parse(new FileReader(".sync"));
-        		    JSONObject meta = (JSONObject) obj;
-        		    
-        		    // ....
-        		    
-        		    JSONArray files = (JSONArray) meta.get("files");
-        		    // NEEDS TO BE DEFINED RECURSIVELY
-        		    for (int i = 0; i < files.size(); i++) {
-        			JSONObject file = (JSONObject) files.get(i);
-        			String fileName = (String) file.get("name");
-        			this.receiveFile(fileName, curr.getFile(fileName), false);
-        		    }
-        		    
-        		} catch (ParseException e) {
-        		    e.printStackTrace();
-        		}
-        		
-        	    }
-    	    }
-    	}
-	
+
+	this.sync();
 	this.genMetadata();
 
 	new Thread() {
@@ -91,6 +58,67 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		heartbeat();
 	    }
 	}.start();
+    }
+
+    private void sync() throws NotBoundException, IOException,
+	    WriteNotAllowedException, InfoNotFoundException {
+	List<ServerInfo> brothers = ((ContactServer) Naming
+		.lookup(contactServerURL)).getAllFileServersByName(name);
+
+	for (ServerInfo si : brothers) {
+
+	    if (!si.getHost().equals(this.getHost())) {
+
+		FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
+		if (curr.isPrimary()) {
+		    this.receiveFile(".sync", curr.getFile(".sync"), false);
+
+		    JSONParser parser = new JSONParser();
+
+		    try {
+			Object obj = parser.parse(new FileReader(".sync"));
+			JSONObject meta = (JSONObject) obj;
+
+			JSONArray files = (JSONArray) meta.get("files");
+			// NEEDS TO BE DEFINED RECURSIVELY
+			for (int i = 0; i < files.size(); i++) {
+
+			    // GETS ROOT CONTENTS
+			    JSONObject file = (JSONObject) files.get(i);
+			    String fileName = (String) file.get("name");
+			    this.receiveFile(fileName, curr.getFile(fileName),
+				    false);
+
+			    // CHECK IF ITS A DIRECTORY
+			    File received = new File(fileName);
+			    if (received.isDirectory())
+				this.syncDir(fileName, curr);
+			}
+
+		    } catch (ParseException e) {
+			e.printStackTrace();
+		    }
+
+		}
+	    }
+	}
+    }
+
+    private void syncDir(String path, FileServer primary)
+	    throws InfoNotFoundException, IOException, NotBoundException,
+	    WriteNotAllowedException {
+
+	List<String> contents = primary.dir(path);
+	for (String name : contents) {
+
+	    String newPath = path + '/' + name;
+	    this.receiveFile(newPath, primary.getFile(newPath), false);
+	    File f = new File(newPath);
+
+	    if (f.isDirectory())
+		this.syncDir(newPath, primary);
+	}
+
     }
 
     @SuppressWarnings("unchecked")
