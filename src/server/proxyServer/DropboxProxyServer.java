@@ -1,21 +1,20 @@
 package server.proxyServer;
 
 import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.MulticastSocket;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Enumeration;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,23 +29,26 @@ import org.scribe.model.Response;
 import org.scribe.model.Verb;
 
 import server.ServerInfo;
+import server.ServerUtils;
 import server.contactServer.ContactServer;
 import server.fileServer.FileServer;
 import server.fileServer.WriteNotAllowedException;
+import fileSystem.FileSystem;
+import fileSystem.InfoNotFoundException;
 
 public class DropboxProxyServer extends UnicastRemoteObject implements
 	FileServer {
 
     private static final long serialVersionUID = 1L;
-    
+
     private static final String ACCESS_TOKEN = "FYwRsrxo0ZoAAAAAAAAAlPbqRzn6Xy0OCr11Y2axLjeUzZljxafP3dNBHiZPc3zm";
 
     private String name, contactServerURL;
     private boolean isPrimary;
 
     protected DropboxProxyServer(String name, final String contactServerURL)
-	    throws RemoteException, MalformedURLException, NotBoundException,
-	    UnknownHostException {
+	    throws NotBoundException, InfoNotFoundException, IOException,
+	    WriteNotAllowedException {
 	super();
 	Naming.rebind('/' + name, this);
 	this.contactServerURL = contactServerURL;
@@ -56,6 +58,9 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
 
+	this.sync();
+	this.genMetadata();
+
 	new Thread() {
 	    public void run() {
 		heartbeat();
@@ -63,11 +68,101 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	}.start();
     }
 
+    private void sync() throws NotBoundException, IOException,
+	    WriteNotAllowedException, InfoNotFoundException {
+
+	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
+		.getPrimaryServer(name);
+
+	if (!si.getHost().equals(this.getHost())) {
+
+	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
+	    this.receiveFile(".sync", curr.getFile(".sync"), false);
+
+	    JSONParser parser = new JSONParser();
+
+	    try {
+		Object obj = parser.parse(new FileReader(".sync"));
+		JSONObject meta = (JSONObject) obj;
+
+		JSONArray files = (JSONArray) meta.get("files");
+		for (int i = 0; i < files.size(); i++) {
+
+		    // GETS ROOT CONTENTS
+		    JSONObject file = (JSONObject) files.get(i);
+		    String fileName = (String) file.get("name");
+		    this.receiveFile(fileName, curr.getFile(fileName), false);
+
+		    // CHECK IF ITS A DIRECTORY
+		    File received = new File(fileName);
+		    if (received.isDirectory())
+			this.syncDir(fileName, curr);
+		}
+
+	    } catch (ParseException e) {
+		e.printStackTrace();
+	    }
+
+	}
+    }
+
+    private void syncDir(String path, FileServer primary)
+	    throws InfoNotFoundException, IOException, NotBoundException,
+	    WriteNotAllowedException {
+
+	List<String> contents = primary.dir(path);
+	for (String name : contents) {
+
+	    String newPath = path + '/' + name;
+	    this.receiveFile(newPath, primary.getFile(newPath), false);
+	    File f = new File(newPath);
+
+	    if (f.isDirectory())
+		this.syncDir(newPath, primary);
+	}
+
+    }
+
+    @SuppressWarnings("unchecked")
+    private void genMetadata() throws InfoNotFoundException, IOException {
+
+	JSONObject meta = new JSONObject();
+	meta.put("name", name);
+	meta.put("host", this.getHost());
+	meta.put("is_primary", isPrimary);
+
+	JSONArray files = new JSONArray();
+	List<String> contents = this.dir(".");
+
+	for (String fileName : contents) {
+	    File f = new File(fileName);
+	    JSONObject file = new JSONObject();
+	    file.put("date_modified", new Date(f.lastModified()).toString());
+	    file.put("is_dir", f.isDirectory());
+	    file.put("name", fileName);
+	    files.add(file);
+	}
+
+	meta.put("files", files);
+
+	FileWriter toFile = new FileWriter(".sync");
+	try {
+	    toFile.write(meta.toJSONString());
+	    System.out.println("Successfully generated metadata...");
+	} catch (IOException e) {
+	    e.printStackTrace();
+	} finally {
+	    toFile.flush();
+	    toFile.close();
+	}
+    }
+
     private void heartbeat() {
 	try {
 	    for (;;) {
 		((ContactServer) Naming.lookup(contactServerURL))
 			.receiveAliveSignal(getHost(), getName());
+		System.out.println("Sent alive signal");
 		Thread.sleep(1000);
 	    }
 	} catch (RemoteException | MalformedURLException | NotBoundException
@@ -170,7 +265,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).makeDir(name, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).makeDir(name, false);
 		}
 	    }
 	}
@@ -225,8 +321,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).removeFile(path,
-			    isFile, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).removeFile(path, isFile, false);
 		}
 	    }
 	}
@@ -238,9 +334,14 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	    String toPath) throws IOException, NotBoundException,
 	    WriteNotAllowedException {
 
-	byte[] in = this.getFile(fromPath);
+	byte[] in = FileSystem.getData(fromPath);
 
-	return getFileServer(toIsURL, toServer).receiveFile(toPath, in, true);
+	if (toIsURL)
+	    return ServerUtils.getFileServer(contactServerURL, toIsURL,
+		    toServer).receiveFile(toPath, in, false);
+
+	return ServerUtils.getPrimaryFileServer(contactServerURL, toServer)
+		.receiveFile(toPath, in, false);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
@@ -286,32 +387,13 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).receiveFile(toPath,
-			    data, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).receiveFile(toPath, data, false);
 		}
 	    }
 	}
 
 	return true;
-    }
-
-    private FileServer getFileServer(boolean isURL, String server)
-	    throws RemoteException {
-	try {
-	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
-	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
-		    .getFileServerByName(server);
-	    if (fs.isRMI())
-		return (FileServer) Naming.lookup(fs.getAddress());
-	} catch (UnknownHostException e) {
-	    e.printStackTrace();
-	} catch (MalformedURLException e) {
-	    e.printStackTrace();
-	} catch (NotBoundException e) {
-	    e.printStackTrace();
-	}
-
-	return null;
     }
 
     public boolean isPrimary() {
@@ -327,30 +409,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
     }
 
     public String getHost() {
-	return getLocalhost().toString().substring(1);
-    }
-
-    private InetAddress getLocalhost() {
-	try {
-	    try {
-		Enumeration<NetworkInterface> e = NetworkInterface
-			.getNetworkInterfaces();
-		while (e.hasMoreElements()) {
-		    NetworkInterface n = e.nextElement();
-		    Enumeration<InetAddress> ee = n.getInetAddresses();
-		    while (ee.hasMoreElements()) {
-			InetAddress i = ee.nextElement();
-			if (i instanceof Inet4Address && !i.isLoopbackAddress())
-			    return i;
-		    }
-		}
-	    } catch (SocketException e) {
-		// do nothing
-	    }
-	    return InetAddress.getLocalHost();
-	} catch (UnknownHostException e) {
-	    return null;
-	}
+	return ServerUtils.getLocalhost().toString().substring(1);
     }
 
     @SuppressWarnings("deprecation")

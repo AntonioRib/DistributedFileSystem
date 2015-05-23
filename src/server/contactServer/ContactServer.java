@@ -19,6 +19,8 @@ public interface ContactServer extends Remote {
 
     String[] getFileServersByName(String name) throws RemoteException,
             UnknownHostException, MalformedURLException, NotBoundException;
+    
+    ServerInfo getPrimaryServer(String name) throws RemoteException;
 
     ServerInfo getFileServerByURL(String URL) throws RemoteException,
             UnknownHostException;

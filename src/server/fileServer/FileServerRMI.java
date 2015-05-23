@@ -5,20 +5,15 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.MulticastSocket;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Date;
-import java.util.Enumeration;
 import java.util.List;
 
 import org.json.simple.JSONArray;
@@ -27,6 +22,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import server.ServerInfo;
+import server.ServerUtils;
 import server.contactServer.ContactServer;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
@@ -62,44 +58,43 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
     private void sync() throws NotBoundException, IOException,
 	    WriteNotAllowedException, InfoNotFoundException {
-	List<ServerInfo> brothers = ((ContactServer) Naming
-		.lookup(contactServerURL)).getAllFileServersByName(name);
 
-	for (ServerInfo si : brothers) {
+	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
+		.getPrimaryServer(name);
 
-	    if (!si.getHost().equals(this.getHost())) {
+	if (!si.getHost().equals(this.getHost())) {
 
-		FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-		if (curr.isPrimary()) {
-		    this.receiveFile(".sync", curr.getFile(".sync"), false);
+	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
+	    if (curr.isPrimary()) {
+		this.receiveFile(".sync", curr.getFile(".sync"), false);
 
-		    JSONParser parser = new JSONParser();
+		JSONParser parser = new JSONParser();
 
-		    try {
-			Object obj = parser.parse(new FileReader(".sync"));
-			JSONObject meta = (JSONObject) obj;
+		try {
+		    Object obj = parser.parse(new FileReader(".sync"));
+		    JSONObject meta = (JSONObject) obj;
 
-			JSONArray files = (JSONArray) meta.get("files");
-			// NEEDS TO BE DEFINED RECURSIVELY
-			for (int i = 0; i < files.size(); i++) {
+		    JSONArray files = (JSONArray) meta.get("files");
 
-			    // GETS ROOT CONTENTS
-			    JSONObject file = (JSONObject) files.get(i);
-			    String fileName = (String) file.get("name");
-			    this.receiveFile(fileName, curr.getFile(fileName),
-				    false);
+		    for (int i = 0; i < files.size(); i++) {
 
-			    // CHECK IF ITS A DIRECTORY
-			    File received = new File(fileName);
-			    if (received.isDirectory())
-				this.syncDir(fileName, curr);
-			}
+			// GETS ROOT CONTENTS
+			JSONObject file = (JSONObject) files.get(i);
+			String fileName = (String) file.get("name");
+			this.receiveFile(fileName, curr.getFile(fileName),
+				false);
 
-		    } catch (ParseException e) {
-			e.printStackTrace();
+			// CHECK IF RECEIVED FILE IS A DIRECTORY
+			File received = new File(fileName);
+			if (received.isDirectory())
+			    // IT IS, GET ITS CONTENTS AND SYNC THEM TOO
+			    this.syncDir(fileName, curr);
 		    }
 
+		} catch (ParseException e) {
+		    e.printStackTrace();
 		}
+
 	    }
 	}
     }
@@ -126,6 +121,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
 	JSONObject meta = new JSONObject();
 	meta.put("name", name);
+	meta.put("host", this.getHost());
 	meta.put("is_primary", isPrimary);
 
 	JSONArray files = new JSONArray();
@@ -159,7 +155,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	    for (;;) {
 		((ContactServer) Naming.lookup(contactServerURL))
 			.receiveAliveSignal(getHost(), getName());
-		System.out.println("Mandei");
+		System.out.println("Sent alive signal");
 		Thread.sleep(1000);
 	    }
 	} catch (RemoteException | MalformedURLException | NotBoundException
@@ -200,7 +196,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).makeDir(name, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).makeDir(name, false);
 		}
 	    }
 	}
@@ -230,8 +227,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).removeFile(name,
-			    isFile, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).removeFile(name, isFile, false);
 		}
 	    }
 	}
@@ -245,7 +242,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
 	byte[] in = FileSystem.getData(fromPath);
 
-	return getFileServer(toIsURL, toServer).receiveFile(toPath, in, false);
+	if (toIsURL)
+	    return ServerUtils.getFileServer(contactServerURL, toIsURL,
+		    toServer).receiveFile(toPath, in, false);
+
+	return ServerUtils.getPrimaryFileServer(contactServerURL, toServer)
+		.receiveFile(toPath, in, false);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
@@ -273,32 +275,13 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		    .getName());
 	    for (ServerInfo sf : serversList) {
 		if (!sf.getHost().equals(this.getHost())) {
-		    getFileServer(true, sf.getAddress()).receiveFile(toPath,
-			    data, false);
+		    ServerUtils.getFileServer(contactServerURL, true,
+			    sf.getAddress()).receiveFile(toPath, data, false);
 		}
 	    }
 	}
 
 	return response;
-    }
-
-    private FileServer getFileServer(boolean isURL, String server)
-	    throws RemoteException {
-	try {
-	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
-	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
-		    .getFileServerByName(server);
-	    if (fs.isRMI())
-		return (FileServer) Naming.lookup(fs.getAddress());
-	} catch (UnknownHostException e) {
-	    e.printStackTrace();
-	} catch (MalformedURLException e) {
-	    e.printStackTrace();
-	} catch (NotBoundException e) {
-	    e.printStackTrace();
-	}
-
-	return null;
     }
 
     public boolean isPrimary() throws RemoteException {
@@ -314,30 +297,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     }
 
     public String getHost() {
-	return getLocalhost().toString().substring(1);
-    }
-
-    private InetAddress getLocalhost() {
-	try {
-	    try {
-		Enumeration<NetworkInterface> e = NetworkInterface
-			.getNetworkInterfaces();
-		while (e.hasMoreElements()) {
-		    NetworkInterface n = e.nextElement();
-		    Enumeration<InetAddress> ee = n.getInetAddresses();
-		    while (ee.hasMoreElements()) {
-			InetAddress i = ee.nextElement();
-			if (i instanceof Inet4Address && !i.isLoopbackAddress())
-			    return i;
-		    }
-		}
-	    } catch (SocketException e) {
-		// do nothing
-	    }
-	    return InetAddress.getLocalHost();
-	} catch (UnknownHostException e) {
-	    return null;
-	}
+	return ServerUtils.getLocalhost().toString().substring(1);
     }
 
     @SuppressWarnings("deprecation")

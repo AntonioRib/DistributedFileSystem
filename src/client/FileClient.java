@@ -13,9 +13,8 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.List;
 
-import server.ServerInfo;
+import server.ServerUtils;
 import server.contactServer.ContactServer;
-import server.fileServer.FileServer;
 import server.fileServer.WriteNotAllowedException;
 import fileSystem.FileSystem;
 import fileSystem.InfoNotFoundException;
@@ -33,33 +32,6 @@ public class FileClient {
 	this.contactServerURL = url;
     }
 
-    /**
-     * Returns a FileServer according to a name or an URL
-     * 
-     * @param isURL
-     *            - if server represents an URL
-     * @param server
-     *            - name or URL to the file server
-     * @return a FileServer
-     * @throws RemoteException
-     */
-    private FileServer getFileServer(boolean isURL, String server)
-	    throws RemoteException {
-	try {
-	    ContactServer cs = ((ContactServer) Naming.lookup(contactServerURL));
-	    ServerInfo fs = isURL ? cs.getFileServerByURL(server) : cs
-		    .getFileServerByName(server);
-
-	    if (fs.isRMI())
-		return (FileServer) Naming.lookup(fs.getAddress());
-
-	} catch (UnknownHostException | MalformedURLException
-		| NotBoundException e) {
-	    e.printStackTrace();
-	}
-
-	return null;
-    }
 
     /**
      * Devolve um array com os servidores a correr caso o name== null ou o URL
@@ -95,7 +67,7 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.dir(dir);
-	    return getFileServer(isURL, server).dir(dir);
+	    return ServerUtils.getFileServer(contactServerURL, isURL, server).dir(dir);
 	} catch (InfoNotFoundException e) {
 	    // does nothing, will return with error
 	} catch (RemoteException e) {
@@ -119,7 +91,12 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.makeDir(dir);
-	    return getFileServer(isURL, server).makeDir(dir, true);
+	    
+	    if (isURL)
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).makeDir(dir, true);
+	    
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).makeDir(dir, true);
+	    
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -150,7 +127,11 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.removeFile(dir, false);
-	    return getFileServer(isURL, server).removeFile(dir, false, true);
+	    
+	    if (isURL)
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(dir, false, true);
+	    
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(dir, false, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -181,7 +162,11 @@ public class FileClient {
 	try {
 	    if (server == null)
 		return FileSystem.removeFile(path, true);
-	    return getFileServer(isURL, server).removeFile(path, true, true);
+	    
+	    if (isURL)
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(path, true, true);
+	    
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(path, true, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -212,7 +197,7 @@ public class FileClient {
 	    if (server == null) {
 		return FileSystem.getFileInfo(path);
 	    }
-	    return getFileServer(isURL, server).getFileInfo(path);
+	    return ServerUtils.getFileServer(contactServerURL, isURL, server).getFileInfo(path);
 	} catch (InfoNotFoundException e) {
 	    // does nothing, will return with error
 	} catch (RemoteException e) {
@@ -242,17 +227,27 @@ public class FileClient {
 
 	    if (fromServer == null) {
 		byte[] localData = FileSystem.getData(fromPath);
-		return getFileServer(toIsURL, toServer).receiveFile(toPath,
+		
+		if (toIsURL)
+		    return ServerUtils.getFileServer(contactServerURL, toIsURL, toServer).receiveFile(toPath,
 			localData, true);
+		
+		return ServerUtils.getPrimaryFileServer(contactServerURL, toServer).receiveFile(toPath, localData, true);
 	    }
 
 	    if (toServer == null) {
-		byte[] remoteData = getFileServer(fromIsURL, fromServer)
+		byte[] remoteData;
+		
+		if (fromIsURL)
+		    remoteData = ServerUtils.getFileServer(contactServerURL, fromIsURL, fromServer)
 			.getFile(fromPath);
+		else
+		    remoteData = ServerUtils.getPrimaryFileServer(contactServerURL, fromServer).getFile(fromPath);
+		
 		return FileSystem.createFile(toPath, remoteData);
 	    }
-
-	    return getFileServer(fromIsURL, fromServer).sendFile(fromPath,
+	    // TODO
+	    return ServerUtils.getFileServer(contactServerURL, fromIsURL, fromServer).sendFile(fromPath,
 		    toServer, toIsURL, toPath);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
