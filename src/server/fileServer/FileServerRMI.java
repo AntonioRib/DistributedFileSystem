@@ -69,6 +69,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         		    // ....
         		    
         		    JSONArray files = (JSONArray) meta.get("files");
+        		    // NEEDS TO BE DEFINED RECURSIVELY
         		    for (int i = 0; i < files.size(); i++) {
         			JSONObject file = (JSONObject) files.get(i);
         			String fileName = (String) file.get("name");
