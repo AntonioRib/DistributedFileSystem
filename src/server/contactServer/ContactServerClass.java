@@ -144,7 +144,6 @@ public class ContactServerClass extends UnicastRemoteObject implements
             i++;
         }
         
-
         servers.put(name, serversName);
 
         if (serversName.size() == 0)
@@ -162,7 +161,7 @@ public class ContactServerClass extends UnicastRemoteObject implements
     private void promoteServer(String host, String name) throws MalformedURLException, RemoteException, NotBoundException{
        FileServer fs = ((FileServer) Naming.lookup("//" + host + '/' + name));
        fs.setPrimary(true);
-       System.out.println("//" + host + '/' + name + " - " + "Promovido a primário");
+       System.out.println("//" + host + '/' + name + " - " + "Promoted to primary");
     }
 
     public String getName() throws RemoteException {

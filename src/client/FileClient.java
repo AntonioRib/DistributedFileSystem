@@ -123,15 +123,15 @@ public class FileClient {
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (NotBoundException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (WriteNotAllowedException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    }
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (NotBoundException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (WriteNotAllowedException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	}
 	return false;
     }
 
@@ -154,15 +154,15 @@ public class FileClient {
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (NotBoundException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (WriteNotAllowedException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    }
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (NotBoundException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (WriteNotAllowedException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	}
 	return false;
     }
 
@@ -185,15 +185,15 @@ public class FileClient {
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (NotBoundException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (WriteNotAllowedException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    }
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (NotBoundException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (WriteNotAllowedException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	}
 	return false;
     }
 
@@ -259,12 +259,12 @@ public class FileClient {
 	} catch (IOException e) {
 	    // does nothing, will return with error
 	} catch (NotBoundException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    } catch (WriteNotAllowedException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-    }
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	} catch (WriteNotAllowedException e) {
+	    // TODO Auto-generated catch block
+	    e.printStackTrace();
+	}
 	return false;
     }
 
