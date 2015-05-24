@@ -62,7 +62,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
 		.getPrimaryServer(name);
 
-	if (!si.getHost().equals(this.getHost())) {
+	if (si != null && !si.getHost().equals(this.getHost())) {
 
 	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
 	    if (curr.isPrimary()) {
@@ -108,9 +108,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
 	    String newPath = path + '/' + name;
 	    this.receiveFile(newPath, primary.getFile(newPath), false);
-	    File f = new File(newPath);
 
-	    if (f.isDirectory())
+	    if (new File(newPath).isDirectory())
 		this.syncDir(newPath, primary);
 	}
 

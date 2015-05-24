@@ -57,7 +57,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 
 	this.sync();
 	this.genMetadata();
-	
+
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
 
@@ -74,35 +74,40 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
 		.getPrimaryServer(name);
 
-	if (!si.getHost().equals(this.getHost())) {
+	if (si != null && !si.getHost().equals(this.getHost())) {
 
 	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-	    this.receiveFile(".sync", curr.getFile(".sync"), false);
+	    if (curr.isPrimary()) {
+		this.receiveFile(".sync", curr.getFile(".sync"), false);
 
-	    JSONParser parser = new JSONParser();
+		JSONParser parser = new JSONParser();
 
-	    try {
-		Object obj = parser.parse(new FileReader(".sync"));
-		JSONObject meta = (JSONObject) obj;
+		try {
+		    Object obj = parser.parse(new FileReader(".sync"));
+		    JSONObject meta = (JSONObject) obj;
 
-		JSONArray files = (JSONArray) meta.get("files");
-		for (int i = 0; i < files.size(); i++) {
+		    JSONArray files = (JSONArray) meta.get("files");
 
-		    // GETS ROOT CONTENTS
-		    JSONObject file = (JSONObject) files.get(i);
-		    String fileName = (String) file.get("name");
-		    this.receiveFile(fileName, curr.getFile(fileName), false);
+		    for (int i = 0; i < files.size(); i++) {
 
-		    // CHECK IF ITS A DIRECTORY
-		    File received = new File(fileName);
-		    if (received.isDirectory())
-			this.syncDir(fileName, curr);
+			// GETS ROOT CONTENTS
+			JSONObject file = (JSONObject) files.get(i);
+			String fileName = (String) file.get("name");
+			this.receiveFile(fileName, curr.getFile(fileName),
+				false);
+
+			// CHECK IF RECEIVED FILE IS A DIRECTORY
+			File received = new File(fileName);
+			if (received.isDirectory())
+			    // IT IS, GET ITS CONTENTS AND SYNC THEM TOO
+			    this.syncDir(fileName, curr);
+		    }
+
+		} catch (ParseException e) {
+		    e.printStackTrace();
 		}
 
-	    } catch (ParseException e) {
-		e.printStackTrace();
 	    }
-
 	}
     }
 
@@ -115,9 +120,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 
 	    String newPath = path + '/' + name;
 	    this.receiveFile(newPath, primary.getFile(newPath), false);
-	    File f = new File(newPath);
 
-	    if (f.isDirectory())
+	    if (new File(newPath).isDirectory())
 		this.syncDir(newPath, primary);
 	}
 
