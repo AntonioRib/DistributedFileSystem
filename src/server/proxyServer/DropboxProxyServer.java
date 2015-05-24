@@ -1,6 +1,7 @@
 package server.proxyServer;
 
 import java.io.DataInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -79,9 +80,15 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
 	    this.receiveFile(".sync.tmp", curr.getFile(".sync"), false);
 
+	    
+	    FileOutputStream fos = new FileOutputStream(".sync.tmp");
+	    fos.write(this.getFile(".sync.tmp"));
+	    fos.close();
+	    
 	    JSONParser parser = new JSONParser();
 
 	    try {
+		
 		Object obj = parser.parse(new FileReader(".sync.tmp"));
 		JSONObject meta = (JSONObject) obj;
 		JSONArray files = (JSONArray) meta.get("files");

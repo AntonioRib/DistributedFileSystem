@@ -1,6 +1,8 @@
 package server.fileServer;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -152,6 +154,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	}
     }
 
+    
     private void heartbeat() {
 	try {
 	    for (;;) {
