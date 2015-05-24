@@ -55,11 +55,11 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	this.name = name;
 	this.isPrimary = false;
 
-	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName(), true);
-
 	this.sync();
 	this.genMetadata();
+	
+	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+		this.getHost(), this.getName(), true);
 
 	new Thread() {
 	    public void run() {

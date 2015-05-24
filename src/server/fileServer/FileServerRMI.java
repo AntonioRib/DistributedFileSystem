@@ -43,12 +43,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	this.name = name;
 	this.isPrimary = false;
 
-	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName(), true);
-
 	this.sync();
 	this.genMetadata();
 
+	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+		this.getHost(), this.getName(), true);
+	
 	new Thread() {
 	    public void run() {
 		heartbeat();
