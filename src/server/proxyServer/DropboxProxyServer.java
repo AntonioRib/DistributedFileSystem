@@ -1,9 +1,7 @@
 package server.proxyServer;
 
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -14,7 +12,6 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,8 +52,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	this.name = name;
 	this.isPrimary = false;
 
-	this.sync();
 	this.genMetadata();
+	this.sync();
 
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
@@ -74,40 +71,40 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
 		.getPrimaryServer(name);
 
-	if (si != null && !si.getHost().equals(this.getHost())) {
+	if (si == null)
+	    return;
+
+	if (!si.getHost().equals(this.getHost())) {
 
 	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-	    if (curr.isPrimary()) {
-		this.receiveFile(".sync", curr.getFile(".sync"), false);
+	    this.receiveFile(".sync.tmp", curr.getFile(".sync"), false);
 
-		JSONParser parser = new JSONParser();
+	    JSONParser parser = new JSONParser();
 
-		try {
-		    Object obj = parser.parse(new FileReader(".sync"));
-		    JSONObject meta = (JSONObject) obj;
+	    try {
+		Object obj = parser.parse(new FileReader(".sync.tmp"));
+		JSONObject meta = (JSONObject) obj;
+		JSONArray files = (JSONArray) meta.get("files");
 
-		    JSONArray files = (JSONArray) meta.get("files");
+		for (int i = 0; i < files.size(); i++) {
 
-		    for (int i = 0; i < files.size(); i++) {
+		    // GETS ROOT CONTENTS
+		    JSONObject file = (JSONObject) files.get(i);
+		    String fileName = (String) file.get("name");
+		    boolean fileIsDir = (boolean) file.get("is_dir");
 
-			// GETS ROOT CONTENTS
-			JSONObject file = (JSONObject) files.get(i);
-			String fileName = (String) file.get("name");
+		    if (fileIsDir)
+			this.syncDir(fileName, curr);
+		    else
 			this.receiveFile(fileName, curr.getFile(fileName),
 				false);
-
-			// CHECK IF RECEIVED FILE IS A DIRECTORY
-			File received = new File(fileName);
-			if (received.isDirectory())
-			    // IT IS, GET ITS CONTENTS AND SYNC THEM TOO
-			    this.syncDir(fileName, curr);
-		    }
-
-		} catch (ParseException e) {
-		    e.printStackTrace();
 		}
 
+	    } catch (ParseException e) {
+		e.printStackTrace();
 	    }
+
+	    this.removeFile(".sync.tmp", true, false);
 	}
     }
 
@@ -115,20 +112,26 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	    throws InfoNotFoundException, IOException, NotBoundException,
 	    WriteNotAllowedException {
 
+	this.makeDir(path, false);
+
 	List<String> contents = primary.dir(path);
 	for (String name : contents) {
 
 	    String newPath = path + '/' + name;
-	    this.receiveFile(newPath, primary.getFile(newPath), false);
+	    boolean fileIsDir = Boolean.parseBoolean(primary
+		    .getFileInfo(newPath).get(3).substring(7));
 
-	    if (new File(newPath).isDirectory())
+	    if (fileIsDir)
 		this.syncDir(newPath, primary);
+	    else
+		this.receiveFile(newPath, primary.getFile(newPath), false);
 	}
 
     }
 
     @SuppressWarnings("unchecked")
-    private void genMetadata() throws InfoNotFoundException, IOException {
+    private void genMetadata() throws InfoNotFoundException, IOException,
+	    NotBoundException, WriteNotAllowedException {
 
 	JSONObject meta = new JSONObject();
 	meta.put("name", name);
@@ -139,26 +142,34 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	List<String> contents = this.dir(".");
 
 	for (String fileName : contents) {
-	    File f = new File(fileName);
+	    
+	    List<String> l = this.getFileInfo(fileName);
+	    String lastModified = l.get(2).substring(14);
+	    boolean isDir = Boolean.parseBoolean(l.get(3).substring(7));
+	    
 	    JSONObject file = new JSONObject();
-	    file.put("date_modified", new Date(f.lastModified()).toString());
-	    file.put("is_dir", f.isDirectory());
+	    file.put("date_modified", lastModified);
+	    file.put("is_dir", isDir);
 	    file.put("name", fileName);
 	    files.add(file);
 	}
 
 	meta.put("files", files);
 
-	FileWriter toFile = new FileWriter(".sync");
-	try {
-	    toFile.write(meta.toJSONString());
-	    System.out.println("Successfully generated metadata...");
-	} catch (IOException e) {
-	    e.printStackTrace();
-	} finally {
-	    toFile.flush();
-	    toFile.close();
-	}
+	OAuthRequest request = new OAuthRequest(Verb.PUT,
+		"https://api-content.dropbox.com/1/files_put/dropbox/.sync");
+	request.addHeader("Content-Type", "application/octet-stream");
+	request.addPayload(meta.toJSONString().getBytes());
+	request.addQuerystringParameter(OAuthConstants.ACCESS_TOKEN,
+		ACCESS_TOKEN);
+	Response response = request.send();
+
+	if (response.getCode() != 200)
+	    throw new RuntimeException("Metadata response code:"
+		    + response.getCode());
+	
+	
+	System.out.println("Successfully generated metadata...");
     }
 
     private void heartbeat() {
@@ -208,7 +219,8 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	Iterator it = items.iterator();
 	while (it.hasNext()) {
 	    JSONObject file = (JSONObject) it.next();
-	    result.add((String) file.get("path"));
+	    String pathName = (String) file.get("path");
+	    result.add(pathName.substring(pathName.lastIndexOf('/')+1));
 	}
 
 	return result;
@@ -239,7 +251,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	result.add("Path: " + path);
 	result.add("Size: " + res.get("size"));
 	result.add("Last Modified: " + res.get("modified"));
-	result.add("Is file:" + !((boolean) res.get("is_dir")));
+	result.add("Is dir:" + (boolean) res.get("is_dir"));
 
 	return result;
     }
@@ -262,6 +274,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	if (response.getCode() != 200)
 	    throw new RuntimeException("Metadata response code:"
 		    + response.getCode());
+
+	try {
+	    this.genMetadata();
+	} catch (InfoNotFoundException | IOException e) {
+	    e.printStackTrace();
+	}
 
 	if (propagate) {
 	    List<ServerInfo> serversList = ((ContactServer) Naming
@@ -319,6 +337,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	    throw new RuntimeException("Metadata response code:"
 		    + response.getCode());
 
+	try {
+	    this.genMetadata();
+	} catch (InfoNotFoundException | IOException e) {
+	    e.printStackTrace();
+	}
+
 	if (propagate) {
 	    List<ServerInfo> serversList = ((ContactServer) Naming
 		    .lookup(contactServerURL)).getAllFileServersByName(this
@@ -354,7 +378,7 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	request.addQuerystringParameter(OAuthConstants.ACCESS_TOKEN,
 		ACCESS_TOKEN);
 	Response response = request.send();
-
+	
 	if (response.getCode() != 200)
 	    throw new RuntimeException("Metadata response code:"
 		    + response.getCode());
@@ -384,6 +408,12 @@ public class DropboxProxyServer extends UnicastRemoteObject implements
 	if (response.getCode() != 200)
 	    throw new RuntimeException("Metadata response code:"
 		    + response.getCode());
+
+	try {
+	    this.genMetadata();
+	} catch (InfoNotFoundException | IOException e) {
+	    e.printStackTrace();
+	}
 
 	if (propagate) {
 	    List<ServerInfo> serversList = ((ContactServer) Naming

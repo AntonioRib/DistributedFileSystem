@@ -43,12 +43,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	this.name = name;
 	this.isPrimary = false;
 
-	this.sync();
 	this.genMetadata();
+	this.sync();
 
 	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
 		this.getHost(), this.getName(), true);
-	
+
 	new Thread() {
 	    public void run() {
 		heartbeat();
@@ -62,40 +62,39 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
 		.getPrimaryServer(name);
 
-	if (si != null && !si.getHost().equals(this.getHost())) {
+	if (si == null)
+	    return;
+
+	if (!si.getHost().equals(this.getHost())) {
 
 	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-	    if (curr.isPrimary()) {
-		this.receiveFile(".sync", curr.getFile(".sync"), false);
+	    this.receiveFile(".sync.tmp", curr.getFile(".sync"), false);
 
-		JSONParser parser = new JSONParser();
+	    JSONParser parser = new JSONParser();
 
-		try {
-		    Object obj = parser.parse(new FileReader(".sync"));
-		    JSONObject meta = (JSONObject) obj;
+	    try {
+		Object obj = parser.parse(new FileReader(".sync.tmp"));
+		JSONObject meta = (JSONObject) obj;
+		JSONArray files = (JSONArray) meta.get("files");
 
-		    JSONArray files = (JSONArray) meta.get("files");
+		for (int i = 0; i < files.size(); i++) {
 
-		    for (int i = 0; i < files.size(); i++) {
-
-			// GETS ROOT CONTENTS
-			JSONObject file = (JSONObject) files.get(i);
-			String fileName = (String) file.get("name");
-			this.receiveFile(fileName, curr.getFile(fileName),
-				false);
-
-			// CHECK IF RECEIVED FILE IS A DIRECTORY
-			File received = new File(fileName);
-			if (received.isDirectory())
-			    // IT IS, GET ITS CONTENTS AND SYNC THEM TOO
-			    this.syncDir(fileName, curr);
-		    }
-
-		} catch (ParseException e) {
-		    e.printStackTrace();
+		    // GETS ROOT CONTENTS
+		    JSONObject file = (JSONObject) files.get(i);
+		    String fileName = (String) file.get("name");
+		    boolean fileIsDir = (boolean) file.get("is_dir");
+		    
+		    if (fileIsDir)
+			this.syncDir(fileName, curr);
+		    else
+			this.receiveFile(fileName, curr.getFile(fileName), false);
 		}
 
+	    } catch (ParseException e) {
+		e.printStackTrace();
 	    }
+
+	    this.removeFile(".sync.tmp", true, false);
 	}
     }
 
@@ -103,14 +102,18 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	    throws InfoNotFoundException, IOException, NotBoundException,
 	    WriteNotAllowedException {
 
+	this.makeDir(path, false);
+	
 	List<String> contents = primary.dir(path);
 	for (String name : contents) {
 
 	    String newPath = path + '/' + name;
-	    this.receiveFile(newPath, primary.getFile(newPath), false);
-
-	    if (new File(newPath).isDirectory())
+	    boolean fileIsDir = Boolean.parseBoolean(primary.getFileInfo(newPath).get(3).substring(7));
+	    
+	    if (fileIsDir)
 		this.syncDir(newPath, primary);
+	    else
+		this.receiveFile(newPath, primary.getFile(newPath), false);
 	}
 
     }

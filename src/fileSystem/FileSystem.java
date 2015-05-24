@@ -14,7 +14,7 @@ public class FileSystem {
 
     public static List<String> dir(String path) throws InfoNotFoundException {
 	File f = new File(path);
-	if (f.exists())
+	if (f.isDirectory())
 	    return Arrays.asList(f.list());
 	else
 	    throw new InfoNotFoundException("Directory not found :" + path);
@@ -28,7 +28,7 @@ public class FileSystem {
 	    ls.add("Path: " + path);
 	    ls.add("Size: " + f.length());
 	    ls.add("Last Modified: " + new Date(f.lastModified()).toString());
-	    ls.add("Is file:" + f.isFile());
+	    ls.add("Is dir:" + f.isDirectory());
 	    return ls;
 	} else
 	    throw new InfoNotFoundException("File not found.");
@@ -36,7 +36,7 @@ public class FileSystem {
 
     public static boolean makeDir(String name) {
 	File dir = new File(name);
-	return dir.mkdir();
+	return dir.mkdirs();
     }
 
     public static boolean removeFile(String path, boolean isFile) {
