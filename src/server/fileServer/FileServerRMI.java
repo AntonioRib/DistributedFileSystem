@@ -16,6 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 
 import org.json.simple.JSONArray;
@@ -117,7 +118,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
             if (fileIsDir)
                 this.syncDir(newPath, primary);
             else
-                this.receiveFile(newPath, primary.getFile(newPath), false, false);
+                this.receiveFile(newPath, primary.getFile(newPath), false,
+                        false);
         }
 
     }
@@ -161,11 +163,13 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         Object obj = parser.parse(new FileReader(".sync"));
         JSONObject meta = (JSONObject) obj;
         JSONArray files = (JSONArray) meta.get("files");
-        JSONObject file = new JSONObject();
-        file.put("date_modified", new Date(f.lastModified()).toString());
-        file.put("is_dir", f.isDirectory());
-        file.put("name", f.getName());
-        files.remove(file);
+        Iterator it = files.iterator();
+        while (it.hasNext()) {
+            JSONObject file = new JSONObject();
+            if(Boolean.parseBoolean((String) file.get("is_dir")) == f.isDirectory() && file.get("name").equals(f.getName())){
+                files.remove(file);
+            }
+        }
         FileWriter fw = new FileWriter(".sync");
         fw.write(meta.toJSONString());
         fw.flush();
@@ -183,7 +187,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         file.put("is_dir", f.isDirectory());
         file.put("name", f.getName());
         files.add(file);
-        if(f.getName().equalsIgnoreCase("SD")){
+        if (f.getName().equalsIgnoreCase("SD")) {
             System.out.println("YESH MAN");
         }
         FileWriter fw = new FileWriter(".sync");
@@ -226,7 +230,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
         boolean response = FileSystem.makeDir(name);
         try {
-            if(response && writeMetadata)
+            if (response && writeMetadata)
                 this.addMetadata(new File(name));
         } catch (IOException | ParseException e) {
             e.printStackTrace();
@@ -247,9 +251,9 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         return response;
     }
 
-    public boolean removeFile(String path, boolean isFile, boolean propagate, boolean writeMetadata)
-            throws RemoteException, MalformedURLException, NotBoundException,
-            WriteNotAllowedException {
+    public boolean removeFile(String path, boolean isFile, boolean propagate,
+            boolean writeMetadata) throws RemoteException,
+            MalformedURLException, NotBoundException, WriteNotAllowedException {
 
         if (!isPrimary && propagate) {
             throw new WriteNotAllowedException();
@@ -257,12 +261,11 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 
         boolean response = FileSystem.removeFile(path, isFile);
         try {
-            if(response && writeMetadata)
+            if (response && writeMetadata)
                 this.removeMetadata(new File(path));
         } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
-
 
         if (propagate) {
             List<ServerInfo> serversList = ((ContactServer) Naming
@@ -271,7 +274,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
             for (ServerInfo sf : serversList) {
                 if (!sf.getHost().equals(this.getHost())) {
                     ServerUtils.getFileServer(contactServerURL, true,
-                            sf.getAddress()).removeFile(name, isFile, false, true);
+                            sf.getAddress()).removeFile(path, isFile, false,
+                            true);
                 }
             }
         }
@@ -297,8 +301,9 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         return FileSystem.getData(fromPath);
     }
 
-    public boolean receiveFile(String toPath, byte[] data, boolean propagate, boolean writeMetadata)
-            throws IOException, NotBoundException, WriteNotAllowedException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate,
+            boolean writeMetadata) throws IOException, NotBoundException,
+            WriteNotAllowedException {
 
         if (!isPrimary && propagate) {
             throw new WriteNotAllowedException();
@@ -307,7 +312,7 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         boolean response = FileSystem.createFile(toPath, data);
 
         try {
-            if(response && writeMetadata)
+            if (response && writeMetadata)
                 this.addMetadata(new File(name));
         } catch (ParseException e) {
             e.printStackTrace();
@@ -320,7 +325,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
             for (ServerInfo sf : serversList) {
                 if (!sf.getHost().equals(this.getHost())) {
                     ServerUtils.getFileServer(contactServerURL, true,
-                            sf.getAddress()).receiveFile(toPath, data, false, true);
+                            sf.getAddress()).receiveFile(toPath, data, false,
+                            true);
                 }
             }
         }
