@@ -37,359 +37,362 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
     private boolean isPrimary;
 
     protected FileServerRMI(String name, final String contactServerURL)
-	    throws NotBoundException, InfoNotFoundException, IOException,
-	    WriteNotAllowedException {
-	super();
-	Naming.rebind('/' + name, this);
-	this.contactServerURL = contactServerURL;
-	this.name = name;
-	this.isPrimary = false;
+            throws NotBoundException, InfoNotFoundException, IOException,
+            WriteNotAllowedException {
+        super();
+        Naming.rebind('/' + name, this);
+        this.contactServerURL = contactServerURL;
+        this.name = name;
+        this.isPrimary = false;
 
-	this.genMetadata();
-	this.sync();
+        this.genMetadata();
+        this.sync();
 
-	((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
-		this.getHost(), this.getName(), true);
+        ((ContactServer) Naming.lookup(contactServerURL)).addFileServer(
+                this.getHost(), this.getName(), true);
 
-	new Thread() {
-	    public void run() {
-		heartbeat();
-	    }
-	}.start();
+        new Thread() {
+            public void run() {
+                heartbeat();
+            }
+        }.start();
     }
 
     private void sync() throws NotBoundException, IOException,
-	    WriteNotAllowedException, InfoNotFoundException {
+            WriteNotAllowedException, InfoNotFoundException {
 
-	ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
-		.getPrimaryServer(name);
+        ServerInfo si = ((ContactServer) Naming.lookup(contactServerURL))
+                .getPrimaryServer(name);
 
-	if (si == null)
-	    return;
+        if (si == null)
+            return;
 
-	if (!si.getHost().equals(this.getHost())) {
+        if (!si.getHost().equals(this.getHost())) {
 
-	    FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
-	    this.receiveFile(".sync.tmp", curr.getFile(".sync"), false);
+            FileServer curr = ((FileServer) Naming.lookup(si.getAddress()));
+            this.receiveFile(".sync.tmp", curr.getFile(".sync"), false, false);
 
-	    JSONParser parser = new JSONParser();
+            JSONParser parser = new JSONParser();
 
-	    try {
-		Object obj = parser.parse(new FileReader(".sync.tmp"));
-		JSONObject meta = (JSONObject) obj;
-		JSONArray files = (JSONArray) meta.get("files");
+            try {
+                Object obj = parser.parse(new FileReader(".sync.tmp"));
+                JSONObject meta = (JSONObject) obj;
+                JSONArray files = (JSONArray) meta.get("files");
 
-		for (int i = 0; i < files.size(); i++) {
+                for (int i = 0; i < files.size(); i++) {
 
-		    // GETS ROOT CONTENTS
-		    JSONObject file = (JSONObject) files.get(i);
-		    String fileName = (String) file.get("name");
-		    boolean fileIsDir = (boolean) file.get("is_dir");
+                    // GETS ROOT CONTENTS
+                    JSONObject file = (JSONObject) files.get(i);
+                    String fileName = (String) file.get("name");
+                    boolean fileIsDir = (boolean) file.get("is_dir");
 
-		    if (fileIsDir)
-			this.syncDir(fileName, curr);
-		    else
-			this.receiveFile(fileName, curr.getFile(fileName),
-				false);
-		}
+                    if (fileIsDir)
+                        this.syncDir(fileName, curr);
+                    else
+                        this.receiveFile(fileName, curr.getFile(fileName),
+                                false, false);
+                }
 
-	    } catch (ParseException e) {
-		e.printStackTrace();
-	    }
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
 
-	    this.removeFile(".sync.tmp", true, false);
-	}
+            this.removeFile(".sync.tmp", true, false, false);
+        }
     }
 
     private void syncDir(String path, FileServer primary)
-	    throws InfoNotFoundException, IOException, NotBoundException,
-	    WriteNotAllowedException {
+            throws InfoNotFoundException, IOException, NotBoundException,
+            WriteNotAllowedException {
 
-	this.makeDir(path, false);
+        this.makeDir(path, false, false);
 
-	List<String> contents = primary.dir(path);
-	for (String name : contents) {
+        List<String> contents = primary.dir(path);
+        for (String name : contents) {
 
-	    String newPath = path + '/' + name;
-	    boolean fileIsDir = Boolean.parseBoolean(primary
-		    .getFileInfo(newPath).get(3).substring(7));
+            String newPath = path + '/' + name;
+            boolean fileIsDir = Boolean.parseBoolean(primary
+                    .getFileInfo(newPath).get(3).substring(7));
 
-	    if (fileIsDir)
-		this.syncDir(newPath, primary);
-	    else
-		this.receiveFile(newPath, primary.getFile(newPath), false);
-	}
+            if (fileIsDir)
+                this.syncDir(newPath, primary);
+            else
+                this.receiveFile(newPath, primary.getFile(newPath), false, false);
+        }
 
     }
 
     @SuppressWarnings("unchecked")
     private void genMetadata() throws InfoNotFoundException, IOException {
 
-	JSONObject meta = new JSONObject();
-	meta.put("name", name);
-	meta.put("host", this.getHost());
-	meta.put("is_primary", isPrimary);
+        JSONObject meta = new JSONObject();
+        meta.put("name", name);
+        meta.put("host", this.getHost());
+        meta.put("is_primary", isPrimary);
 
-	JSONArray files = new JSONArray();
-	List<String> contents = this.dir(".");
+        JSONArray files = new JSONArray();
+        List<String> contents = this.dir(".");
 
-	for (String fileName : contents) {
-	    File f = new File(fileName);
-	    JSONObject file = new JSONObject();
-	    file.put("date_modified", new Date(f.lastModified()).toString());
-	    file.put("is_dir", f.isDirectory());
-	    file.put("name", fileName);
-	    files.add(file);
-	}
+        for (String fileName : contents) {
+            File f = new File(fileName);
+            JSONObject file = new JSONObject();
+            file.put("date_modified", new Date(f.lastModified()).toString());
+            file.put("is_dir", f.isDirectory());
+            file.put("name", fileName);
+            files.add(file);
+        }
 
-	meta.put("files", files);
+        meta.put("files", files);
 
-	FileWriter toFile = new FileWriter(".sync");
-	try {
-	    toFile.write(meta.toJSONString());
-	    System.out.println("Successfully generated metadata...");
-	} catch (IOException e) {
-	    e.printStackTrace();
-	} finally {
-	    toFile.flush();
-	    toFile.close();
-	}
+        FileWriter toFile = new FileWriter(".sync");
+        try {
+            toFile.write(meta.toJSONString());
+            System.out.println("Successfully generated metadata...");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            toFile.flush();
+            toFile.close();
+        }
     }
 
     private void removeMetadata(File f) throws IOException, ParseException {
-	JSONParser parser = new JSONParser();
-	Object obj = parser.parse(new FileReader(".sync"));
-	JSONObject meta = (JSONObject) obj;
-	JSONArray files = (JSONArray) meta.get("files");
-	JSONObject file = new JSONObject();
-	file.put("date_modified", new Date(f.lastModified()).toString());
-	file.put("is_dir", f.isDirectory());
-	file.put("name", f.getName());
-	files.remove(file); 
-	meta.replace("files", files);
-	FileWriter fw = new FileWriter(".sync");
-	fw.write(meta.toJSONString());
-	fw.flush();
-	fw.close();
+        JSONParser parser = new JSONParser();
+        Object obj = parser.parse(new FileReader(".sync"));
+        JSONObject meta = (JSONObject) obj;
+        JSONArray files = (JSONArray) meta.get("files");
+        JSONObject file = new JSONObject();
+        file.put("date_modified", new Date(f.lastModified()).toString());
+        file.put("is_dir", f.isDirectory());
+        file.put("name", f.getName());
+        files.remove(file);
+        FileWriter fw = new FileWriter(".sync");
+        fw.write(meta.toJSONString());
+        fw.flush();
+        fw.close();
     }
 
-    private void addMetadata(File f) throws FileNotFoundException, IOException, ParseException {
-	JSONParser parser = new JSONParser();
-	Object obj = parser.parse(new FileReader(".sync"));
-	JSONObject meta = (JSONObject) obj;
-	JSONArray files = (JSONArray) meta.get("files");
-	JSONObject file = new JSONObject();
-	file.put("date_modified", new Date(f.lastModified()).toString());
-	file.put("is_dir", f.isDirectory());
-	file.put("name", f.getName());
-	files.add(file); 
-	meta.replace("files", files);
-	FileWriter fw = new FileWriter(".sync");
-	fw.write(meta.toJSONString());
-	fw.flush();
-	fw.close();
+    private void addMetadata(File f) throws FileNotFoundException, IOException,
+            ParseException {
+        JSONParser parser = new JSONParser();
+        Object obj = parser.parse(new FileReader(".sync"));
+        JSONObject meta = (JSONObject) obj;
+        JSONArray files = (JSONArray) meta.get("files");
+        JSONObject file = new JSONObject();
+        file.put("date_modified", new Date(f.lastModified()).toString());
+        file.put("is_dir", f.isDirectory());
+        file.put("name", f.getName());
+        files.add(file);
+        if(f.getName().equalsIgnoreCase("SD")){
+            System.out.println("YESH MAN");
+        }
+        FileWriter fw = new FileWriter(".sync");
+        fw.write(meta.toJSONString());
+        fw.flush();
+        fw.close();
     }
 
     private void heartbeat() {
-	try {
-	    for (;;) {
-		((ContactServer) Naming.lookup(contactServerURL))
-			.receiveAliveSignal(getHost(), getName());
-		System.out.println("Sent alive signal");
-		Thread.sleep(1000);
-	    }
-	} catch (RemoteException | MalformedURLException | NotBoundException
-		| InterruptedException e) {
-	    e.printStackTrace();
-	}
+        try {
+            for (;;) {
+                ((ContactServer) Naming.lookup(contactServerURL))
+                        .receiveAliveSignal(getHost(), getName());
+                System.out.println("Sent alive signal");
+                Thread.sleep(1000);
+            }
+        } catch (RemoteException | MalformedURLException | NotBoundException
+                | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public List<String> dir(String path) throws RemoteException,
-	    InfoNotFoundException {
-	return FileSystem.dir(path);
+            InfoNotFoundException {
+        return FileSystem.dir(path);
     }
 
     public List<String> getFileInfo(String path) throws RemoteException,
-	    InfoNotFoundException {
-	return FileSystem.getFileInfo(path);
+            InfoNotFoundException {
+        return FileSystem.getFileInfo(path);
     }
 
-    public boolean makeDir(String name, boolean propagate)
-	    throws RemoteException, MalformedURLException, NotBoundException,
-	    WriteNotAllowedException {
+    public boolean makeDir(String name, boolean propagate, boolean writeMetadata)
+            throws RemoteException, MalformedURLException, NotBoundException,
+            WriteNotAllowedException {
 
-	if (!isPrimary && propagate) {
-	    throw new WriteNotAllowedException();
-	}
+        if (!isPrimary && propagate) {
+            throw new WriteNotAllowedException();
+        }
 
-	boolean response = FileSystem.makeDir(name);
+        boolean response = FileSystem.makeDir(name);
+        try {
+            if(response && writeMetadata)
+                this.addMetadata(new File(name));
+        } catch (IOException | ParseException e) {
+            e.printStackTrace();
+        }
 
-	try {
-	    this.addMetadata(new File(name));
-	} catch (IOException | ParseException e) {
-	    e.printStackTrace();
-	}
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this
+                    .getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())) {
+                    ServerUtils.getFileServer(contactServerURL, true,
+                            sf.getAddress()).makeDir(name, false, true);
+                }
+            }
+        }
 
-	if (propagate) {
-	    List<ServerInfo> serversList = ((ContactServer) Naming
-		    .lookup(contactServerURL)).getAllFileServersByName(this
-		    .getName());
-	    for (ServerInfo sf : serversList) {
-		if (!sf.getHost().equals(this.getHost())) {
-		    ServerUtils.getFileServer(contactServerURL, true,
-			    sf.getAddress()).makeDir(name, false);
-		}
-	    }
-	}
-
-	return response;
+        return response;
     }
 
-    public boolean removeFile(String path, boolean isFile, boolean propagate)
-	    throws RemoteException, MalformedURLException, NotBoundException,
-	    WriteNotAllowedException {
+    public boolean removeFile(String path, boolean isFile, boolean propagate, boolean writeMetadata)
+            throws RemoteException, MalformedURLException, NotBoundException,
+            WriteNotAllowedException {
 
-	if (!isPrimary && propagate) {
-	    throw new WriteNotAllowedException();
-	}
+        if (!isPrimary && propagate) {
+            throw new WriteNotAllowedException();
+        }
 
-	try {
-	    this.removeMetadata(new File(path));
-	} catch (IOException | ParseException e) {
-	    e.printStackTrace();
-	}
-	
-	boolean response = FileSystem.removeFile(path, isFile);
+        boolean response = FileSystem.removeFile(path, isFile);
+        try {
+            if(response && writeMetadata)
+                this.removeMetadata(new File(path));
+        } catch (IOException | ParseException e) {
+            e.printStackTrace();
+        }
 
 
-	if (propagate) {
-	    List<ServerInfo> serversList = ((ContactServer) Naming
-		    .lookup(contactServerURL)).getAllFileServersByName(this
-		    .getName());
-	    for (ServerInfo sf : serversList) {
-		if (!sf.getHost().equals(this.getHost())) {
-		    ServerUtils.getFileServer(contactServerURL, true,
-			    sf.getAddress()).removeFile(name, isFile, false);
-		}
-	    }
-	}
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this
+                    .getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())) {
+                    ServerUtils.getFileServer(contactServerURL, true,
+                            sf.getAddress()).removeFile(name, isFile, false, true);
+                }
+            }
+        }
 
-	return response;
+        return response;
     }
 
     public boolean sendFile(String fromPath, String toServer, boolean toIsURL,
-	    String toPath) throws IOException, NotBoundException,
-	    WriteNotAllowedException {
+            String toPath) throws IOException, NotBoundException,
+            WriteNotAllowedException {
 
-	byte[] in = FileSystem.getData(fromPath);
+        byte[] in = FileSystem.getData(fromPath);
 
-	if (toIsURL)
-	    return ServerUtils.getFileServer(contactServerURL, toIsURL,
-		    toServer).receiveFile(toPath, in, false);
+        if (toIsURL)
+            return ServerUtils.getFileServer(contactServerURL, toIsURL,
+                    toServer).receiveFile(toPath, in, false, true);
 
-	return ServerUtils.getPrimaryFileServer(contactServerURL, toServer)
-		.receiveFile(toPath, in, false);
+        return ServerUtils.getPrimaryFileServer(contactServerURL, toServer)
+                .receiveFile(toPath, in, false, true);
     }
 
     public byte[] getFile(String fromPath) throws IOException {
-	return FileSystem.getData(fromPath);
+        return FileSystem.getData(fromPath);
     }
 
-    public boolean receiveFile(String toPath, byte[] data, boolean propagate)
-	    throws IOException, NotBoundException, WriteNotAllowedException {
+    public boolean receiveFile(String toPath, byte[] data, boolean propagate, boolean writeMetadata)
+            throws IOException, NotBoundException, WriteNotAllowedException {
 
-	if (!isPrimary && propagate) {
-	    throw new WriteNotAllowedException();
-	}
+        if (!isPrimary && propagate) {
+            throw new WriteNotAllowedException();
+        }
 
-	boolean response = FileSystem.createFile(toPath, data);
+        boolean response = FileSystem.createFile(toPath, data);
 
-	try {
-	    this.addMetadata(new File(name));
-	} catch (ParseException e) {
-	    e.printStackTrace();
-	}
+        try {
+            if(response && writeMetadata)
+                this.addMetadata(new File(name));
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
 
-	if (propagate) {
-	    List<ServerInfo> serversList = ((ContactServer) Naming
-		    .lookup(contactServerURL)).getAllFileServersByName(this
-		    .getName());
-	    for (ServerInfo sf : serversList) {
-		if (!sf.getHost().equals(this.getHost())) {
-		    ServerUtils.getFileServer(contactServerURL, true,
-			    sf.getAddress()).receiveFile(toPath, data, false);
-		}
-	    }
-	}
+        if (propagate) {
+            List<ServerInfo> serversList = ((ContactServer) Naming
+                    .lookup(contactServerURL)).getAllFileServersByName(this
+                    .getName());
+            for (ServerInfo sf : serversList) {
+                if (!sf.getHost().equals(this.getHost())) {
+                    ServerUtils.getFileServer(contactServerURL, true,
+                            sf.getAddress()).receiveFile(toPath, data, false, true);
+                }
+            }
+        }
 
-	return response;
+        return response;
     }
 
     public boolean isPrimary() throws RemoteException {
-	return isPrimary;
+        return isPrimary;
     }
 
     public void setPrimary(boolean isPrimary) throws RemoteException {
-	this.isPrimary = isPrimary;
+        this.isPrimary = isPrimary;
     }
 
     public String getName() {
-	return name;
+        return name;
     }
 
     public String getHost() {
-	return ServerUtils.getLocalhost().toString().substring(1);
+        return ServerUtils.getLocalhost().toString().substring(1);
     }
 
     @SuppressWarnings("deprecation")
     public static void main(String args[]) throws Exception {
-	try {
-	    if (args.length < 1) {
-		System.out
-			.println("Use: java server.fileServer.FileServerClass serverName or java server.fileServer.FileServerClass serverName contactServerAdress");
-		return;
-	    }
+        try {
+            if (args.length < 1) {
+                System.out
+                        .println("Use: java server.fileServer.FileServerClass serverName or java server.fileServer.FileServerClass serverName contactServerAdress");
+                return;
+            }
 
-	    String name = args[0];
+            String name = args[0];
 
-	    System.getProperties().put("java.security.policy", "policy.all");
+            System.getProperties().put("java.security.policy", "policy.all");
 
-	    if (System.getSecurityManager() == null) {
-		System.setSecurityManager(new java.rmi.RMISecurityManager());
-	    }
+            if (System.getSecurityManager() == null) {
+                System.setSecurityManager(new java.rmi.RMISecurityManager());
+            }
 
-	    try { // start rmiregistry
-		LocateRegistry.createRegistry(1099);
-	    } catch (RemoteException e) {
-		// if not start it
-		// do nothing - already started with rmiregistry
-	    }
+            try { // start rmiregistry
+                LocateRegistry.createRegistry(1099);
+            } catch (RemoteException e) {
+                // if not start it
+                // do nothing - already started with rmiregistry
+            }
 
-	    FileServer fs;
-	    if (args.length == 1) {
-		InetAddress group = InetAddress.getByName("239.255.255.255");
-		MulticastSocket sock = new MulticastSocket(5000);
-		sock.joinGroup(group);
+            FileServer fs;
+            if (args.length == 1) {
+                InetAddress group = InetAddress.getByName("239.255.255.255");
+                MulticastSocket sock = new MulticastSocket(5000);
+                sock.joinGroup(group);
 
-		byte buf[] = new byte[128];
-		DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
-			buf.length);
-		sock.receive(contactServerBroadcast);
-		sock.close();
+                byte buf[] = new byte[128];
+                DatagramPacket contactServerBroadcast = new DatagramPacket(buf,
+                        buf.length);
+                sock.receive(contactServerBroadcast);
+                sock.close();
 
-		System.out.println("Got broadcast from contact server!");
+                System.out.println("Got broadcast from contact server!");
 
-		fs = new FileServerRMI(name, new String(
-			contactServerBroadcast.getData()).trim());
-	    } else {
-		fs = new FileServerRMI(name, args[1]);
-	    }
+                fs = new FileServerRMI(name, new String(
+                        contactServerBroadcast.getData()).trim());
+            } else {
+                fs = new FileServerRMI(name, args[1]);
+            }
 
-	    System.out.println("FileServer bound in registry");
-	    System.out.println("//" + fs.getHost() + '/' + fs.getName());
-	} catch (Throwable th) {
-	    th.printStackTrace();
-	}
+            System.out.println("FileServer bound in registry");
+            System.out.println("//" + fs.getHost() + '/' + fs.getName());
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
     }
 
 }

@@ -39,7 +39,7 @@ public interface FileServer extends Remote {
      * @throws MalformedURLException
      * @throws WriteNotAllowedException
      */
-    boolean makeDir(String name, boolean propagate) throws RemoteException,
+    boolean makeDir(String name, boolean propagate, boolean writeMetadata) throws RemoteException,
             MalformedURLException, NotBoundException, WriteNotAllowedException;
 
     /**
@@ -52,7 +52,7 @@ public interface FileServer extends Remote {
      * @throws MalformedURLException
      * @throws WriteNotAllowedException
      */
-    boolean removeFile(String name, boolean isFile, boolean propagate)
+    boolean removeFile(String name, boolean isFile, boolean propagate, boolean writeMetadata)
             throws RemoteException, MalformedURLException, NotBoundException,
             WriteNotAllowedException;
 
@@ -89,7 +89,7 @@ public interface FileServer extends Remote {
      * @throws NotBoundException
      * @throws WriteNotAllowedException
      */
-    boolean receiveFile(String toPath, byte[] data, boolean propagate)
+    boolean receiveFile(String toPath, byte[] data, boolean propagate, boolean writeMetadata)
             throws IOException, NotBoundException, WriteNotAllowedException;
 
     boolean isPrimary() throws RemoteException;

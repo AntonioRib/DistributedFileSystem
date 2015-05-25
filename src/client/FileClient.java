@@ -93,9 +93,9 @@ public class FileClient {
 		return FileSystem.makeDir(dir);
 	    
 	    if (isURL)
-		return ServerUtils.getFileServer(contactServerURL, isURL, server).makeDir(dir, true);
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).makeDir(dir, true, true);
 	    
-	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).makeDir(dir, true);
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).makeDir(dir, true, true);
 	    
 	} catch (RemoteException e) {
 	    e.printStackTrace();
@@ -129,9 +129,9 @@ public class FileClient {
 		return FileSystem.removeFile(dir, false);
 	    
 	    if (isURL)
-		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(dir, false, true);
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(dir, false, true, true);
 	    
-	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(dir, false, true);
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(dir, false, true, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -164,9 +164,9 @@ public class FileClient {
 		return FileSystem.removeFile(path, true);
 	    
 	    if (isURL)
-		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(path, true, true);
+		return ServerUtils.getFileServer(contactServerURL, isURL, server).removeFile(path, true, true, true);
 	    
-	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(path, true, true);
+	    return ServerUtils.getPrimaryFileServer(contactServerURL, server).removeFile(path, true, true, true);
 	} catch (RemoteException e) {
 	    e.printStackTrace();
 	} catch (MalformedURLException e) {
@@ -230,9 +230,9 @@ public class FileClient {
 		
 		if (toIsURL)
 		    return ServerUtils.getFileServer(contactServerURL, toIsURL, toServer).receiveFile(toPath,
-			localData, true);
+			localData, true, true);
 		
-		return ServerUtils.getPrimaryFileServer(contactServerURL, toServer).receiveFile(toPath, localData, true);
+		return ServerUtils.getPrimaryFileServer(contactServerURL, toServer).receiveFile(toPath, localData, true, true);
 	    }
 
 	    if (toServer == null) {
