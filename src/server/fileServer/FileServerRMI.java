@@ -85,11 +85,12 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 		    JSONObject file = (JSONObject) files.get(i);
 		    String fileName = (String) file.get("name");
 		    boolean fileIsDir = (boolean) file.get("is_dir");
-		    
+
 		    if (fileIsDir)
 			this.syncDir(fileName, curr);
 		    else
-			this.receiveFile(fileName, curr.getFile(fileName), false);
+			this.receiveFile(fileName, curr.getFile(fileName),
+				false);
 		}
 
 	    } catch (ParseException e) {
@@ -105,13 +106,14 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	    WriteNotAllowedException {
 
 	this.makeDir(path, false);
-	
+
 	List<String> contents = primary.dir(path);
 	for (String name : contents) {
 
 	    String newPath = path + '/' + name;
-	    boolean fileIsDir = Boolean.parseBoolean(primary.getFileInfo(newPath).get(3).substring(7));
-	    
+	    boolean fileIsDir = Boolean.parseBoolean(primary
+		    .getFileInfo(newPath).get(3).substring(7));
+
 	    if (fileIsDir)
 		this.syncDir(newPath, primary);
 	    else
@@ -154,7 +156,40 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	}
     }
 
-    
+    private void removeMetadata(File f) throws IOException, ParseException {
+	JSONParser parser = new JSONParser();
+	Object obj = parser.parse(new FileReader(".sync"));
+	JSONObject meta = (JSONObject) obj;
+	JSONArray files = (JSONArray) meta.get("files");
+	JSONObject file = new JSONObject();
+	file.put("date_modified", new Date(f.lastModified()).toString());
+	file.put("is_dir", f.isDirectory());
+	file.put("name", f.getName());
+	files.remove(file); 
+	meta.replace("files", files);
+	FileWriter fw = new FileWriter(".sync");
+	fw.write(meta.toJSONString());
+	fw.flush();
+	fw.close();
+    }
+
+    private void addMetadata(File f) throws FileNotFoundException, IOException, ParseException {
+	JSONParser parser = new JSONParser();
+	Object obj = parser.parse(new FileReader(".sync"));
+	JSONObject meta = (JSONObject) obj;
+	JSONArray files = (JSONArray) meta.get("files");
+	JSONObject file = new JSONObject();
+	file.put("date_modified", new Date(f.lastModified()).toString());
+	file.put("is_dir", f.isDirectory());
+	file.put("name", f.getName());
+	files.add(file); 
+	meta.replace("files", files);
+	FileWriter fw = new FileWriter(".sync");
+	fw.write(meta.toJSONString());
+	fw.flush();
+	fw.close();
+    }
+
     private void heartbeat() {
 	try {
 	    for (;;) {
@@ -190,8 +225,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	boolean response = FileSystem.makeDir(name);
 
 	try {
-	    this.genMetadata();
-	} catch (InfoNotFoundException | IOException e) {
+	    this.addMetadata(new File(name));
+	} catch (IOException | ParseException e) {
 	    e.printStackTrace();
 	}
 
@@ -218,13 +253,14 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	    throw new WriteNotAllowedException();
 	}
 
-	boolean response = FileSystem.removeFile(path, isFile);
-
 	try {
-	    this.genMetadata();
-	} catch (InfoNotFoundException | IOException e) {
+	    this.removeMetadata(new File(path));
+	} catch (IOException | ParseException e) {
 	    e.printStackTrace();
 	}
+	
+	boolean response = FileSystem.removeFile(path, isFile);
+
 
 	if (propagate) {
 	    List<ServerInfo> serversList = ((ContactServer) Naming
@@ -269,8 +305,8 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
 	boolean response = FileSystem.createFile(toPath, data);
 
 	try {
-	    this.genMetadata();
-	} catch (InfoNotFoundException e) {
+	    this.addMetadata(new File(name));
+	} catch (ParseException e) {
 	    e.printStackTrace();
 	}
 
