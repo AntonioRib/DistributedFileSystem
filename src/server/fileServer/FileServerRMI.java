@@ -165,9 +165,11 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         JSONArray files = (JSONArray) meta.get("files");
         Iterator it = files.iterator();
         while (it.hasNext()) {
-            JSONObject file = new JSONObject();
-            if(Boolean.parseBoolean((String) file.get("is_dir")) == f.isDirectory() && file.get("name").equals(f.getName())){
-                files.remove(file);
+            JSONObject file = (JSONObject) it.next();
+            System.out.println("FILE -> "+file.get("name"));
+            System.out.println("F -> "+f.getName());
+            if(((String)file.get("name")).equalsIgnoreCase(f.getName())){
+            	it.remove();
             }
         }
         FileWriter fw = new FileWriter(".sync");
@@ -187,9 +189,6 @@ public class FileServerRMI extends UnicastRemoteObject implements FileServer {
         file.put("is_dir", f.isDirectory());
         file.put("name", f.getName());
         files.add(file);
-        if (f.getName().equalsIgnoreCase("SD")) {
-            System.out.println("YESH MAN");
-        }
         FileWriter fw = new FileWriter(".sync");
         fw.write(meta.toJSONString());
         fw.flush();
